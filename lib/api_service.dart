@@ -30,11 +30,16 @@ class ApiServiceLog {
             if (data["success"] == true) {
               return;
             } else {
-              throw Exception(data["message"]);
+              // This will throw the message from PHP
+              throw Exception(data["message"] ?? "Unknown error occurred");
             }
           }
         } catch (e) {
-          // print("Error accessing $apiUrl on attempt $attempt: $e");
+          // If we get a specific message from PHP, throw it immediately
+          if (e is Exception && e.toString().contains("ID number does not exist")) {
+            throw e; // Re-throw the specific error
+          }
+          // Otherwise continue with retry logic
         }
       }
       if (attempt < maxRetries) {
@@ -44,7 +49,6 @@ class ApiServiceLog {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
-
   Future<Map<String, dynamic>> fetchProfile(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {

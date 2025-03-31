@@ -105,7 +105,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
         );
       } finally {
         setState(() {
