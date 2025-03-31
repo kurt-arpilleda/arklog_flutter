@@ -281,8 +281,17 @@ class _LoginScreenState extends State<LoginScreen> {
                                 Text(
                                   'ID: ${_currentIdNumber ?? ''}',
                                   style: TextStyle(
-                                    fontSize: 14,
                                     color: Colors.grey[600],
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,  // Medium weight
+                                    letterSpacing: 0.5,          // Slightly spaced out letters
+                                    shadows: [
+                                      Shadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 2,
+                                        offset: Offset(1, 1),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ],
