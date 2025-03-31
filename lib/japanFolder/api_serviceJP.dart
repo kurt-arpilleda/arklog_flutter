@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-class ApiService {
+class ApiServiceJP {
   static const List<String> apiUrls = [
-    "http://192.168.254.163/",
-    "http://126.209.7.246/"
+    "http://192.168.1.213/",
+    "http://220.157.175.232/"
   ];
 
   static const Duration requestTimeout = Duration(seconds: 2);

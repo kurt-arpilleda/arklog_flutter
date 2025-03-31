@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
-import 'api_service.dart';
+import 'api_serviceJP.dart';
 import 'package:unique_identifier/unique_identifier.dart';
 import 'package:http/http.dart' as http;
-import 'auto_update.dart';
+import '../auto_update.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class LoginScreenJP extends StatefulWidget {
+  const LoginScreenJP({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<LoginScreenJP> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreenJP> {
   final TextEditingController _idController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  final ApiService _apiService = ApiService();
+  final ApiServiceJP _apiService = ApiServiceJP();
   bool _isLoading = false;
   String? _firstName;
   String? _surName;
@@ -60,10 +60,10 @@ class _LoginScreenState extends State<LoginScreen> {
       if (profileData["success"] == true) {
         String profilePictureFileName = profileData["picture"];
 
-        String primaryUrl = "${ApiService.apiUrls[0]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
+        String primaryUrl = "${ApiServiceJP.apiUrls[0]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
         bool isPrimaryUrlValid = await _isImageAvailable(primaryUrl);
 
-        String fallbackUrl = "${ApiService.apiUrls[1]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
+        String fallbackUrl = "${ApiServiceJP.apiUrls[1]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
         bool isFallbackUrlValid = await _isImageAvailable(fallbackUrl);
 
         setState(() {
