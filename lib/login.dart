@@ -28,7 +28,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _deviceId;
   bool _isLoggedIn = false;
   String? _currentIdNumber;
-  int? _currentLanguageFlag;
+  String? _currentLanguage; // Changed from _currentLanguageFlag to _currentLanguage
   String? _phOrJp;
   bool _isPhCountryPressed = false;
   bool _isJpCountryPressed = false;
@@ -48,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       await _initializeDeviceId();
-      await _loadCurrentLanguageFlag();
+      await _loadCurrentLanguage(); // Changed from _loadCurrentLanguageFlag
       await _loadPhOrJp();
       await AutoUpdate.checkForUpdate(context);
 
@@ -64,10 +64,10 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _loadCurrentLanguageFlag() async {
+  Future<void> _loadCurrentLanguage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _currentLanguageFlag = prefs.getInt('languageFlag') ?? 1;
+      _currentLanguage = prefs.getString('language') ?? 'en'; // Default to 'en'
     });
   }
 
@@ -78,11 +78,11 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
-  Future<void> _updateLanguageFlag(int flag) async {
+  Future<void> _updateLanguage(String language) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('languageFlag', flag);
+    await prefs.setString('language', language);
     setState(() {
-      _currentLanguageFlag = flag;
+      _currentLanguage = language;
     });
   }
 
@@ -422,7 +422,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               SizedBox(width: 25),
                               GestureDetector(
-                                onTap: () => _updateLanguageFlag(1),
+                                onTap: () => _updateLanguage('en'),
                                 child: Column(
                                   children: [
                                     Image.asset(
@@ -430,7 +430,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       width: 40,
                                       height: 40,
                                     ),
-                                    if (_currentLanguageFlag == 1)
+                                    if (_currentLanguage == 'en')
                                       Container(
                                         height: 2,
                                         width: 40,
@@ -441,7 +441,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                               SizedBox(width: 30),
                               GestureDetector(
-                                onTap: () => _updateLanguageFlag(2),
+                                onTap: () => _updateLanguage('ja'),
                                 child: Column(
                                   children: [
                                     Image.asset(
@@ -449,7 +449,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       width: 40,
                                       height: 40,
                                     ),
-                                    if (_currentLanguageFlag == 2)
+                                    if (_currentLanguage == 'ja')
                                       Container(
                                         height: 2,
                                         width: 40,
