@@ -398,7 +398,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           child: Column(
                             children: [
                               Text(
-                                'ARK LOG',
+                                'ARK LOG PH',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 24,
