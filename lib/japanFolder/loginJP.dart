@@ -198,7 +198,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
 
   Future<bool> _isImageAvailable(String url) async {
     try {
-      final response = await http.head(Uri.parse(url)).timeout(const Duration(seconds: 2));
+      final response = await http.head(Uri.parse(url)).timeout(const Duration(seconds: 3));
       return response.statusCode == 200;
     } catch (e) {
       return false;
