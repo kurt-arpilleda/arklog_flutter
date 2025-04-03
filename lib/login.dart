@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +8,9 @@ import 'package:http/http.dart' as http;
 import 'auto_update.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:intl/intl.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -34,13 +38,30 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isJpCountryPressed = false;
   bool _isCountryLoadingPh = false;
   bool _isCountryLoadingJp = false;
-
+  String _currentDateTime = '';
+  Timer? _timer;
   @override
   void initState() {
     super.initState();
+    tz.initializeTimeZones();
     _initializeApp();
-  }
+    _updateDateTime();
+    _timer = Timer.periodic(Duration(seconds: 1), (Timer t) => _updateDateTime());
 
+  }
+  void _updateDateTime() {
+    // Get Manila timezone
+    final manila = tz.getLocation('Asia/Manila');
+    final now = tz.TZDateTime.now(manila);
+
+    final formattedDate = DateFormat('MMMM dd, yyyy HH:mm:ss').format(now);
+
+    if (mounted) {
+      setState(() {
+        _currentDateTime = formattedDate;
+      });
+    }
+  }
   Future<void> _initializeApp() async {
     try {
       setState(() {
@@ -78,13 +99,13 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
-  Future<void> _updateLanguage(String language) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('language', language);
-    setState(() {
-      _currentLanguage = language;
-    });
-  }
+  // Future<void> _updateLanguage(String language) async {
+  //   SharedPreferences prefs = await SharedPreferences.getInstance();
+  //   await prefs.setString('language', language);
+  //   setState(() {
+  //     _currentLanguage = language;
+  //   });
+  // }
 
   Future<void> _updatePhOrJp(String value) async {
     if ((value == 'ph' && _isCountryLoadingPh) || (value == 'jp' && _isCountryLoadingJp)) {
@@ -304,6 +325,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void dispose() {
     _idController.dispose();
+    _timer?.cancel();
     super.dispose();
   }
 
@@ -681,6 +703,15 @@ class _LoginScreenState extends State<LoginScreen> {
                             fontSize: 24,
                             overflow: TextOverflow.ellipsis,
                             fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          _currentDateTime,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],

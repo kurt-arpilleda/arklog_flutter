@@ -1,12 +1,16 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'api_serviceJP.dart';
 import 'package:unique_identifier/unique_identifier.dart';
 import 'package:http/http.dart' as http;
 import '../auto_update.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz;
 
 class LoginScreenJP extends StatefulWidget {
   const LoginScreenJP({super.key});
@@ -34,13 +38,29 @@ class _LoginScreenState extends State<LoginScreenJP> {
   bool _isJpCountryPressed = false;
   bool _isCountryLoadingPh = false;
   bool _isCountryLoadingJp = false;
+  String _currentDateTime = '';
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
+    tz.initializeTimeZones(); // Initialize timezone database
     _initializeApp();
+    _updateDateTime();
+    _timer = Timer.periodic(Duration(seconds: 1), (Timer t) => _updateDateTime());
   }
+  void _updateDateTime() {
+    final tokyo = tz.getLocation('Asia/Tokyo');
+    final now = tz.TZDateTime.now(tokyo);
 
+    final formattedDate = DateFormat('MMMM dd, yyyy HH:mm:ss').format(now);
+
+    if (mounted) {
+      setState(() {
+        _currentDateTime = formattedDate;
+      });
+    }
+  }
   Future<void> _initializeApp() async {
     try {
       setState(() {
@@ -78,13 +98,13 @@ class _LoginScreenState extends State<LoginScreenJP> {
     });
   }
 
-  Future<void> _updateLanguage(String language) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('languageJP', language);
-    setState(() {
-      _currentLanguage = language;
-    });
-  }
+  // Future<void> _updateLanguage(String language) async {
+  //   SharedPreferences prefs = await SharedPreferences.getInstance();
+  //   await prefs.setString('languageJP', language);
+  //   setState(() {
+  //     _currentLanguage = language;
+  //   });
+  // }
 
   Future<void> _updatePhOrJp(String value) async {
     if ((value == 'ph' && _isCountryLoadingPh) || (value == 'jp' && _isCountryLoadingJp)) {
@@ -674,12 +694,21 @@ class _LoginScreenState extends State<LoginScreenJP> {
                     child: Column(
                       children: [
                         Text(
-                    _isLoggedIn ? 'ようこそ ${_firstName ?? ""}' : 'ID番号を入力してください',
-                    style: TextStyle(
+                          _isLoggedIn ? 'ようこそ ${_firstName ?? ""}' : 'ID番号を入力してください',
+                          style: TextStyle(
                             color: Colors.white,
-                            fontSize: 20,
-                      overflow: TextOverflow.ellipsis,
-                      fontWeight: FontWeight.bold,
+                            fontSize: 24,
+                            overflow: TextOverflow.ellipsis,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          _currentDateTime,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
