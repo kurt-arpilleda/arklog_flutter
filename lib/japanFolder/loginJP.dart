@@ -323,6 +323,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
   @override
   void dispose() {
     _idController.dispose();
+    _timer?.cancel();
     super.dispose();
   }
 
