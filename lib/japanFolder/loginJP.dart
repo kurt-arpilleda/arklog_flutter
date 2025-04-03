@@ -67,7 +67,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
   Future<void> _loadCurrentLanguage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _currentLanguage = prefs.getString('languageJP') ?? 'ja'; // Default to 'en'
+      _currentLanguage = prefs.getString('languageJP') ?? ''; // Default to 'en'
     });
   }
 
@@ -309,69 +309,116 @@ class _LoginScreenState extends State<LoginScreenJP> {
       key: _scaffoldKey,
       backgroundColor: Colors.grey[100],
       appBar: PreferredSize(
-        preferredSize: Size.fromHeight(kToolbarHeight - 20),
+        preferredSize: Size.fromHeight(kToolbarHeight * 1.5), // Increased height to accommodate both headers
         child: SafeArea(
-          child: AppBar(
-            backgroundColor: Color(0xFF3452B4),
-            centerTitle: true,
-            toolbarHeight: kToolbarHeight - 20,
-            leading: Padding(
-              padding: const EdgeInsets.only(left: 10.0),
-              child: IconButton(
-                icon: Icon(
-                  Icons.settings,
-                  color: Colors.white,
-                ),
-                onPressed: () {
-                  _scaffoldKey.currentState?.openDrawer();
-                },
-              ),
-            ),
-            title: _currentIdNumber != null
-                ? Text(
-              "ID: $_currentIdNumber",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.5,
-                shadows: [
-                  Shadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 2,
-                    offset: Offset(1, 1),
-                  ),
-                ],
-              ),
-            )
-                : null,
-            actions: [
-              Padding(
-                padding: const EdgeInsets.only(right: 10.0),
-                child: IconButton(
-                  icon: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.red,
-                    ),
-                    alignment: Alignment.center,
-                    width: 36,
-                    height: 36,
-                    child: Icon(
-                      Icons.close,
-                      color: Colors.white,
-                      size: 20,
+          child: Column(
+            children: [
+              // First header
+              Container(
+                height: kToolbarHeight - 20,
+                color: Color(0xFF3452B4),
+                child: AppBar(
+                  backgroundColor: Colors.transparent,
+                  elevation: 0,
+                  centerTitle: true,
+                  toolbarHeight: kToolbarHeight - 20,
+                  leading: Padding(
+                    padding: const EdgeInsets.only(left: 10.0),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.settings,
+                        color: Colors.white,
+                      ),
+                      onPressed: () {
+                        _scaffoldKey.currentState?.openDrawer();
+                      },
                     ),
                   ),
-                  onPressed: () {
-                    if (Platform.isIOS) {
-                      exit(0);
-                    } else {
-                      SystemNavigator.pop();
-                    }
-                  },
+                  // title: _currentIdNumber != null
+                  //     ? Text(
+                  //   "ID: $_currentIdNumber",
+                  //   style: TextStyle(
+                  //     color: Colors.white,
+                  //     fontSize: 14,
+                  //     fontWeight: FontWeight.w500,
+                  //     letterSpacing: 0.5,
+                  //     shadows: [
+                  //       Shadow(
+                  //         color: Colors.black.withOpacity(0.2),
+                  //         blurRadius: 2,
+                  //         offset: Offset(1, 1),
+                  //       ),
+                  //     ],
+                  //   ),
+                  // ) : null,
+                  actions: [
+                    Padding(
+                      padding: const EdgeInsets.only(right: 10.0),
+                      child: IconButton(
+                        icon: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.red,
+                          ),
+                          alignment: Alignment.center,
+                          width: 36,
+                          height: 36,
+                          child: Icon(
+                            Icons.close,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                        onPressed: () {
+                          if (Platform.isIOS) {
+                            exit(0);
+                          } else {
+                            SystemNavigator.pop();
+                          }
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              Container(
+                color: Color(0xFF3452B4),
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Center(
+                  child: IntrinsicHeight(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Transform.translate(
+                          offset: Offset(-10, 0), // Moves content slightly to the left
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Image.asset(
+                                'assets/images/japan.png',
+                                width: 36,
+                                height: 36,
+                              ),
+                              SizedBox(width: 10),
+                              Text(
+                                'ARK LOG',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 30,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
             ],
           ),
         ),
@@ -408,66 +455,66 @@ class _LoginScreenState extends State<LoginScreenJP> {
                             ],
                           ),
                         ),
-                        SizedBox(height: 20),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                          child: Row(
-                            children: [
-                              Text(
-                                "Language",
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              SizedBox(width: 25),
-                              GestureDetector(
-                                onTap: () => _updateLanguage('en'),
-                                child: Column(
-                                  children: [
-                                    Image.asset(
-                                      'assets/images/americanFlag.gif',
-                                      width: 40,
-                                      height: 40,
-                                    ),
-                                    if (_currentLanguage == 'en')
-                                      Container(
-                                        height: 2,
-                                        width: 40,
-                                        color: Colors.blue,
-                                      ),
-                                  ],
-                                ),
-                              ),
-                              SizedBox(width: 30),
-                              GestureDetector(
-                                onTap: () => _updateLanguage('ja'),
-                                child: Column(
-                                  children: [
-                                    Image.asset(
-                                      'assets/images/japaneseFlag.gif',
-                                      width: 40,
-                                      height: 40,
-                                    ),
-                                    if (_currentLanguage == 'ja')
-                                      Container(
-                                        height: 2,
-                                        width: 40,
-                                        color: Colors.blue,
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        // SizedBox(height: 20),
+                        // Padding(
+                        //   padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                        //   child: Row(
+                        //     children: [
+                        //       Text(
+                        //         "Language",
+                        //         style: TextStyle(
+                        //           fontSize: 16,
+                        //           fontWeight: FontWeight.bold,
+                        //         ),
+                        //       ),
+                        //       SizedBox(width: 25),
+                        //       GestureDetector(
+                        //         onTap: () => _updateLanguage('en'),
+                        //         child: Column(
+                        //           children: [
+                        //             Image.asset(
+                        //               'assets/images/americanFlag.gif',
+                        //               width: 40,
+                        //               height: 40,
+                        //             ),
+                        //             if (_currentLanguage == 'en')
+                        //               Container(
+                        //                 height: 2,
+                        //                 width: 40,
+                        //                 color: Colors.blue,
+                        //               ),
+                        //           ],
+                        //         ),
+                        //       ),
+                        //       SizedBox(width: 30),
+                        //       GestureDetector(
+                        //         onTap: () => _updateLanguage('ja'),
+                        //         child: Column(
+                        //           children: [
+                        //             Image.asset(
+                        //               'assets/images/japaneseFlag.gif',
+                        //               width: 40,
+                        //               height: 40,
+                        //             ),
+                        //             if (_currentLanguage == 'ja')
+                        //               Container(
+                        //                 height: 2,
+                        //                 width: 40,
+                        //                 color: Colors.blue,
+                        //               ),
+                        //           ],
+                        //         ),
+                        //       ),
+                        //     ],
+                        //   ),
+                        // ),
                         SizedBox(height: 20),
                         Padding(
                           padding: const EdgeInsets.only(left: 16.0),
                           child: Row(
                             children: [
                               Text(
-                                "Keyboard",
+                                "キーボード",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -493,7 +540,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                   child: Row(
                     children: [
                       Text(
-                        "Country",
+                        "国",
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -623,20 +670,13 @@ class _LoginScreenState extends State<LoginScreenJP> {
                     ),
                     child: Column(
                       children: [
-                        const Text(
-                          'ARK LOG',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
                         Text(
-                          _isLoggedIn ? 'Welcome ${_firstName ?? ""}' : 'Enter your ID number',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 14,
+                    _isLoggedIn ? 'ようこそ ${_firstName ?? ""}' : 'ID番号を入力してください',
+                    style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                      overflow: TextOverflow.ellipsis,
+                      fontWeight: FontWeight.bold,
                           ),
                         ),
                       ],
@@ -715,7 +755,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                             TextFormField(
                               controller: _idController,
                               decoration: InputDecoration(
-                                labelText: 'ID Number',
+                                labelText: 'ID番号',
                                 prefixIcon: const Icon(Icons.badge),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
@@ -725,7 +765,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Please enter your ID number';
+                                  return 'ID番号を入力してください';
                                 }
                                 return null;
                               },
@@ -750,7 +790,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                               child: _isLoading
                                   ? const CircularProgressIndicator(color: Colors.white)
                                   : Text(
-                                _isLoggedIn ? 'LOGOUT' : 'LOGIN',
+                                _isLoggedIn ? 'ログアウト' : 'ログイン',
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
