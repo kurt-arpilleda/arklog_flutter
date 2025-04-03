@@ -12,7 +12,7 @@ class ApiService {
   static const int maxRetries = 6;
   static const Duration initialRetryDelay = Duration(seconds: 1);
 
-  Future<void> insertIdNumber(String idNumber, {required String deviceId}) async {
+  Future<String> insertIdNumber(String idNumber, {required String deviceId}) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
@@ -28,16 +28,15 @@ class ApiService {
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
             if (data["success"] == true) {
-              return;
+              // Return the actual idNumber from the response
+              return data["idNumber"] ?? idNumber;
             } else {
-              // This will throw the message from PHP
               throw Exception(data["message"] ?? "Unknown error occurred");
             }
           }
         } catch (e) {
-          // If we get a specific message from PHP, throw it immediately
           if (e is Exception && e.toString().contains("ID number does not exist")) {
-            throw e; // Re-throw the specific error
+            throw e;
           }
           // Otherwise continue with retry logic
         }

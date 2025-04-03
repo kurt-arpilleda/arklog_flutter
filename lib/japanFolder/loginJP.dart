@@ -188,7 +188,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
           _firstName = profileData["firstName"];
           _surName = profileData["surName"];
           _profilePictureUrl = isPrimaryUrlValid ? primaryUrl : isFallbackUrlValid ? fallbackUrl : null;
-          _currentIdNumber = idNumber;
+          _currentIdNumber = idNumber; // Ensure this is the actual idNumber
         });
       }
     } catch (e) {
@@ -212,17 +212,21 @@ class _LoginScreenState extends State<LoginScreenJP> {
       });
 
       try {
-        await _apiService.insertIdNumber(
+        // Get the actual idNumber (in case they logged in with randomId)
+        final actualIdNumber = await _apiService.insertIdNumber(
           _idController.text,
           deviceId: _deviceId!,
         );
-        await _fetchProfile(_idController.text);
+
+        // Use the actual idNumber for fetching profile
+        await _fetchProfile(actualIdNumber);
         setState(() {
           _isLoggedIn = true;
-          _currentIdNumber = _idController.text;
+          _currentIdNumber = actualIdNumber;
+          _idController.text = actualIdNumber; // Update the text field with actual idNumber
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Successfully logged in with ID: ${_idController.text}')),
+          SnackBar(content: Text('Successfully logged in with ID: $actualIdNumber')),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -235,7 +239,6 @@ class _LoginScreenState extends State<LoginScreenJP> {
       }
     }
   }
-
   Future<void> _logout() async {
     bool confirm = await showDialog(
       context: context,
