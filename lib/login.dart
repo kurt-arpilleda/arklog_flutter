@@ -773,6 +773,12 @@ class _LoginScreenState extends State<LoginScreen> {
                                 }
                                 return null;
                               },
+                              onFieldSubmitted: (value) {
+                                if (!_isLoading && !_isLoggedIn && _formKey.currentState!.validate()) {
+                                  _login();
+                                }
+                              },
+                              textInputAction: TextInputAction.go, // This changes the keyboard's action button to "GO"
                             ),
                           const SizedBox(height: 24),
                           SizedBox(

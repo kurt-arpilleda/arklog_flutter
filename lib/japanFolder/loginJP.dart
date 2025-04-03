@@ -772,6 +772,12 @@ class _LoginScreenState extends State<LoginScreenJP> {
                                 }
                                 return null;
                               },
+                              onFieldSubmitted: (value) {
+                                if (!_isLoading && !_isLoggedIn && _formKey.currentState!.validate()) {
+                                  _login();
+                                }
+                              },
+                              textInputAction: TextInputAction.go,
                             ),
                           const SizedBox(height: 24),
                           SizedBox(
