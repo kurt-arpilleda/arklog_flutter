@@ -239,6 +239,9 @@ class _LoginScreenState extends State<LoginScreen> {
           deviceId: _deviceId!,
         );
 
+        // Insert WTR record
+        await _apiService.insertWTR(actualIdNumber);
+
         // Use the actual idNumber for fetching profile
         await _fetchProfile(actualIdNumber);
         setState(() {
