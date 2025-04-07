@@ -314,7 +314,14 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       try {
+        // First logout from WTR system
+        if (_currentIdNumber != null) {
+          await _apiService.logoutWTR(_currentIdNumber!);
+        }
+
+        // Then logout from the device tracking system
         await _apiService.logout(_deviceId!);
+
         setState(() {
           _isLoggedIn = false;
           _firstName = null;
@@ -323,6 +330,7 @@ class _LoginScreenState extends State<LoginScreen> {
           _currentIdNumber = null;
           _idController.clear();
         });
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Logged out successfully')),
         );
