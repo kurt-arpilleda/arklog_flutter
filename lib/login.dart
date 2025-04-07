@@ -346,7 +346,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-
   Future<String> _getDeviceId() async {
     try {
       String? identifier = await UniqueIdentifier.serial;
