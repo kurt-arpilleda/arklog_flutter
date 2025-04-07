@@ -125,7 +125,7 @@ class ApiService {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
-  Future<void> insertWTR(String idNumber) async {
+  Future<Map<String, dynamic>> insertWTR(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
@@ -140,7 +140,7 @@ class ApiService {
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
             if (data["success"] == true) {
-              return;
+              return data; // Return the entire response
             } else {
               throw Exception(data["message"] ?? "Unknown error occurred");
             }

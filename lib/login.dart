@@ -239,8 +239,8 @@ class _LoginScreenState extends State<LoginScreen> {
           deviceId: _deviceId!,
         );
 
-        // Insert WTR record
-        await _apiService.insertWTR(actualIdNumber);
+        // Insert WTR record and get response
+        final wtrResponse = await _apiService.insertWTR(actualIdNumber);
 
         // Use the actual idNumber for fetching profile
         await _fetchProfile(actualIdNumber);
@@ -249,9 +249,31 @@ class _LoginScreenState extends State<LoginScreen> {
           _currentIdNumber = actualIdNumber;
           _idController.text = actualIdNumber; // Update the text field with actual idNumber
         });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Successfully logged in with ID: $actualIdNumber')),
         );
+
+        // Show late login dialog if applicable
+        if (wtrResponse['isLate'] == true) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: Text("Late Login"),
+                  content: Text(wtrResponse['lateMessage']),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text("OK"),
+                    ),
+                  ],
+                );
+              },
+            );
+          });
+        }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
