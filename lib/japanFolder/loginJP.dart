@@ -2,13 +2,13 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:intl/intl.dart';
 import 'api_serviceJP.dart';
 import 'package:unique_identifier/unique_identifier.dart';
 import 'package:http/http.dart' as http;
 import '../auto_update.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 
@@ -40,27 +40,26 @@ class _LoginScreenState extends State<LoginScreenJP> {
   bool _isCountryLoadingJp = false;
   String _currentDateTime = '';
   Timer? _timer;
-
   @override
   void initState() {
     super.initState();
-    tz.initializeTimeZones(); // Initialize timezone database
+    tz.initializeTimeZones();
     _initializeApp();
     _updateDateTime();
     _timer = Timer.periodic(Duration(seconds: 1), (Timer t) => _updateDateTime());
+
   }
   void _updateDateTime() {
     final tokyo = tz.getLocation('Asia/Tokyo');
     final now = tz.TZDateTime.now(tokyo);
-
     final formattedDate = DateFormat('MMMM dd, yyyy HH:mm:ss').format(now);
-
     if (mounted) {
       setState(() {
         _currentDateTime = formattedDate;
       });
     }
   }
+
   Future<void> _initializeApp() async {
     try {
       setState(() {
@@ -87,7 +86,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
   Future<void> _loadCurrentLanguage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _currentLanguage = prefs.getString('languageJP') ?? ''; // Default to 'en'
+      _currentLanguage = prefs.getString('languageJP') ?? 'ja'; // Default to 'en'
     });
   }
 
@@ -100,7 +99,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
 
   // Future<void> _updateLanguage(String language) async {
   //   SharedPreferences prefs = await SharedPreferences.getInstance();
-  //   await prefs.setString('languageJP', language);
+  //   await prefs.setString('language', language);
   //   setState(() {
   //     _currentLanguage = language;
   //   });
@@ -238,6 +237,10 @@ class _LoginScreenState extends State<LoginScreenJP> {
           deviceId: _deviceId!,
         );
 
+        // Only proceed with WTR insertion if we got past the DTR check
+        // Insert WTR record and get response
+        final wtrResponse = await _apiService.insertWTR(actualIdNumber);
+
         // Use the actual idNumber for fetching profile
         await _fetchProfile(actualIdNumber);
         setState(() {
@@ -245,9 +248,31 @@ class _LoginScreenState extends State<LoginScreenJP> {
           _currentIdNumber = actualIdNumber;
           _idController.text = actualIdNumber; // Update the text field with actual idNumber
         });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Successfully logged in with ID: $actualIdNumber')),
         );
+
+        // Show late login dialog if applicable
+        if (wtrResponse['isLate'] == true) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: Text("Late Login"),
+                  content: Text(wtrResponse['lateMessage']),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text("OK"),
+                    ),
+                  ],
+                );
+              },
+            );
+          });
+        }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
@@ -259,54 +284,99 @@ class _LoginScreenState extends State<LoginScreenJP> {
       }
     }
   }
+
   Future<void> _logout() async {
-    bool confirm = await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Confirm Logout"),
-          content: const Text("Are you sure you want to logout?"),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text("Cancel"),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text("Logout"),
-            ),
-          ],
-        );
-      },
-    );
+    try {
+      // Call the confirmLogoutWTR API to check if the user is trying to log out before shift end
+      final confirmResult = await _apiService.confirmLogoutWTR(_currentIdNumber!);
 
-    if (confirm == true) {
-      setState(() {
-        _isLoading = true;
-      });
+      // Display different dialog based on whether it's an undertime logout or not
+      bool confirm = false;
 
-      try {
-        await _apiService.logout(_deviceId!);
-        setState(() {
-          _isLoggedIn = false;
-          _firstName = null;
-          _surName = null;
-          _profilePictureUrl = null;
-          _currentIdNumber = null;
-          _idController.clear();
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logged out successfully')),
+      if (confirmResult["isUndertime"] == true) {
+        // Show undertime-specific dialog
+        confirm = await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text("Early Logout"),
+              content: Text("Your shift ends at ${confirmResult["shiftOut"]}. Are you sure you want to logout now?"),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text("Cancel"),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text("Logout Anyway"),
+                ),
+              ],
+            );
+          },
         );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+      } else {
+        // Standard logout confirmation dialog
+        confirm = await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text("Confirm Logout"),
+              content: const Text("Are you sure you want to logout?"),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text("Cancel"),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text("Logout"),
+                ),
+              ],
+            );
+          },
         );
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
       }
+
+      if (confirm == true) {
+        setState(() {
+          _isLoading = true;
+        });
+
+        try {
+          // First logout from WTR system
+          if (_currentIdNumber != null) {
+            await _apiService.logoutWTR(_currentIdNumber!);
+          }
+
+          // Then logout from the device tracking system
+          await _apiService.logout(_deviceId!);
+
+          setState(() {
+            _isLoggedIn = false;
+            _firstName = null;
+            _surName = null;
+            _profilePictureUrl = null;
+            _currentIdNumber = null;
+            _idController.clear();
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Logged out successfully')),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${e.toString()}')),
+          );
+        } finally {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
+      );
     }
   }
 
@@ -420,7 +490,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Image.asset(
-                                'assets/images/japan.png',
+                                'assets/images/philippines.png',
                                 width: 36,
                                 height: 36,
                               ),
@@ -469,7 +539,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                           child: Column(
                             children: [
                               Text(
-                                'ARK LOG JP',
+                                'ARK LOG PH',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 24,
@@ -538,7 +608,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                           child: Row(
                             children: [
                               Text(
-                                "キーボード",
+                                "Keyboard",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -564,7 +634,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                   child: Row(
                     children: [
                       Text(
-                        "国",
+                        "Country",
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -695,7 +765,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                     child: Column(
                       children: [
                         Text(
-                          _isLoggedIn ? 'ようこそ ${_firstName ?? ""}' : 'ID番号を入力してください',
+                          _isLoggedIn ? 'Welcome ${_firstName ?? ""}' : 'Enter your ID number',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 24,
@@ -788,7 +858,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                             TextFormField(
                               controller: _idController,
                               decoration: InputDecoration(
-                                labelText: 'ID番号',
+                                labelText: 'ID Number',
                                 prefixIcon: const Icon(Icons.badge),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
@@ -798,7 +868,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'ID番号を入力してください';
+                                  return 'Please enter your ID number';
                                 }
                                 return null;
                               },
@@ -807,7 +877,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                                   _login();
                                 }
                               },
-                              textInputAction: TextInputAction.go,
+                              textInputAction: TextInputAction.go, // This changes the keyboard's action button to "GO"
                             ),
                           const SizedBox(height: 24),
                           SizedBox(
@@ -829,7 +899,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                               child: _isLoading
                                   ? const CircularProgressIndicator(color: Colors.white)
                                   : Text(
-                                _isLoggedIn ? 'ログアウト' : 'ログイン',
+                                _isLoggedIn ? 'LOGOUT' : 'LOGIN',
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
