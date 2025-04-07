@@ -288,61 +288,97 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _logout() async {
-    bool confirm = await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Confirm Logout"),
-          content: const Text("Are you sure you want to logout?"),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text("Cancel"),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text("Logout"),
-            ),
-          ],
+    try {
+      // Call the confirmLogoutWTR API to check if the user is trying to log out before shift end
+      final confirmResult = await _apiService.confirmLogoutWTR(_currentIdNumber!);
+
+      // Display different dialog based on whether it's an undertime logout or not
+      bool confirm = false;
+
+      if (confirmResult["isUndertime"] == true) {
+        // Show undertime-specific dialog
+        confirm = await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text("Early Logout"),
+              content: Text("Your shift ends at ${confirmResult["shiftOut"]}. Are you sure you want to logout now?"),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text("Cancel"),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text("Logout Anyway"),
+                ),
+              ],
+            );
+          },
         );
-      },
-    );
-
-    if (confirm == true) {
-      setState(() {
-        _isLoading = true;
-      });
-
-      try {
-        // First logout from WTR system
-        if (_currentIdNumber != null) {
-          await _apiService.logoutWTR(_currentIdNumber!);
-        }
-
-        // Then logout from the device tracking system
-        await _apiService.logout(_deviceId!);
-
-        setState(() {
-          _isLoggedIn = false;
-          _firstName = null;
-          _surName = null;
-          _profilePictureUrl = null;
-          _currentIdNumber = null;
-          _idController.clear();
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logged out successfully')),
+      } else {
+        // Standard logout confirmation dialog
+        confirm = await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text("Confirm Logout"),
+              content: const Text("Are you sure you want to logout?"),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text("Cancel"),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text("Logout"),
+                ),
+              ],
+            );
+          },
         );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
-        );
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
       }
+
+      if (confirm == true) {
+        setState(() {
+          _isLoading = true;
+        });
+
+        try {
+          // First logout from WTR system
+          if (_currentIdNumber != null) {
+            await _apiService.logoutWTR(_currentIdNumber!);
+          }
+
+          // Then logout from the device tracking system
+          await _apiService.logout(_deviceId!);
+
+          setState(() {
+            _isLoggedIn = false;
+            _firstName = null;
+            _surName = null;
+            _profilePictureUrl = null;
+            _currentIdNumber = null;
+            _idController.clear();
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Logged out successfully')),
+          );
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${e.toString()}')),
+          );
+        } finally {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
+      );
     }
   }
 
