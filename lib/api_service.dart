@@ -12,42 +12,42 @@ class ApiService {
   static const int maxRetries = 6;
   static const Duration initialRetryDelay = Duration(seconds: 1);
 
-  Future<String> insertIdNumber(String idNumber, {required String deviceId}) async {
-    for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (String apiUrl in apiUrls) {
-        try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_idLog.php");
-          final response = await http.post(
-            uri,
-            body: {
-              'idNumber': idNumber,
-              'deviceId': deviceId,
-            },
-          ).timeout(requestTimeout);
-
-          if (response.statusCode == 200) {
-            final data = jsonDecode(response.body);
-            if (data["success"] == true) {
-              // Return the actual idNumber from the response
-              return data["idNumber"] ?? idNumber;
-            } else {
-              throw Exception(data["message"] ?? "Unknown error occurred");
-            }
-          }
-        } catch (e) {
-          if (e is Exception && e.toString().contains("ID number does not exist")) {
-            throw e;
-          }
-          // Otherwise continue with retry logic
-        }
-      }
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        await Future.delayed(delay);
-      }
-    }
-    throw Exception("Both API URLs are unreachable after $maxRetries attempts");
-  }
+  // Future<String> insertIdNumber(String idNumber, {required String deviceId}) async {
+  //   for (int attempt = 1; attempt <= maxRetries; attempt++) {
+  //     for (String apiUrl in apiUrls) {
+  //       try {
+  //         final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_idLog.php");
+  //         final response = await http.post(
+  //           uri,
+  //           body: {
+  //             'idNumber': idNumber,
+  //             'deviceId': deviceId,
+  //           },
+  //         ).timeout(requestTimeout);
+  //
+  //         if (response.statusCode == 200) {
+  //           final data = jsonDecode(response.body);
+  //           if (data["success"] == true) {
+  //             // Return the actual idNumber from the response
+  //             return data["idNumber"] ?? idNumber;
+  //           } else {
+  //             throw Exception(data["message"] ?? "Unknown error occurred");
+  //           }
+  //         }
+  //       } catch (e) {
+  //         if (e is Exception && e.toString().contains("ID number does not exist")) {
+  //           throw e;
+  //         }
+  //         // Otherwise continue with retry logic
+  //       }
+  //     }
+  //     if (attempt < maxRetries) {
+  //       final delay = initialRetryDelay * (1 << (attempt - 1));
+  //       await Future.delayed(delay);
+  //     }
+  //   }
+  //   throw Exception("Both API URLs are unreachable after $maxRetries attempts");
+  // }
   Future<Map<String, dynamic>> fetchProfile(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
@@ -125,6 +125,71 @@ class ApiService {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+  Future<String> insertIdNumber(String idNumber, {required String deviceId}) async {
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      for (String apiUrl in apiUrls) {
+        try {
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_idLog.php");
+          final response = await http.post(
+            uri,
+            body: {
+              'idNumber': idNumber,
+              'deviceId': deviceId,
+            },
+          ).timeout(requestTimeout);
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            if (data["success"] == true) {
+              // Check if there's a DTR record before proceeding
+              final dtrCheck = await _checkDTRRecord(data["idNumber"] ?? idNumber);
+              if (!dtrCheck) {
+                throw Exception("Please Log first on DTR");
+              }
+              return data["idNumber"] ?? idNumber;
+            } else {
+              throw Exception(data["message"] ?? "Unknown error occurred");
+            }
+          }
+        } catch (e) {
+          if (e is Exception && (e.toString().contains("ID number does not exist") ||
+              e.toString().contains("Please Log first on DTR"))) {
+            throw e;
+          }
+          // Otherwise continue with retry logic
+        }
+      }
+      if (attempt < maxRetries) {
+        final delay = initialRetryDelay * (1 << (attempt - 1));
+        await Future.delayed(delay);
+      }
+    }
+    throw Exception("Both API URLs are unreachable after $maxRetries attempts");
+  }
+
+  Future<bool> _checkDTRRecord(String idNumber) async {
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      for (String apiUrl in apiUrls) {
+        try {
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_checkDTR.php?idNumber=$idNumber");
+          final response = await http.get(uri).timeout(requestTimeout);
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            return data["hasDTRRecord"] == true;
+          }
+        } catch (e) {
+          // Continue with retry logic
+        }
+      }
+      if (attempt < maxRetries) {
+        final delay = initialRetryDelay * (1 << (attempt - 1));
+        await Future.delayed(delay);
+      }
+    }
+    throw Exception("Failed to check DTR record after $maxRetries attempts");
+  }
+
   Future<Map<String, dynamic>> insertWTR(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
@@ -140,7 +205,15 @@ class ApiService {
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
             if (data["success"] == true) {
-              return data; // Return the entire response
+              // Check if WTR record already existed
+              if (data["alreadyExists"] == true) {
+                return {
+                  "success": true,
+                  "message": "WTR record already exists",
+                  "isLate": false,
+                };
+              }
+              return data;
             } else {
               throw Exception(data["message"] ?? "Unknown error occurred");
             }

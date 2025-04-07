@@ -239,6 +239,7 @@ class _LoginScreenState extends State<LoginScreen> {
           deviceId: _deviceId!,
         );
 
+        // Only proceed with WTR insertion if we got past the DTR check
         // Insert WTR record and get response
         final wtrResponse = await _apiService.insertWTR(actualIdNumber);
 
