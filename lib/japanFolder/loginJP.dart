@@ -50,16 +50,18 @@ class _LoginScreenState extends State<LoginScreenJP> {
 
   }
   void _updateDateTime() {
-    final tokyo = tz.getLocation('Asia/Tokyo');
-    final now = tz.TZDateTime.now(tokyo);
+    // Get Manila timezone
+    final manila = tz.getLocation('Asia/Manila');
+    final now = tz.TZDateTime.now(manila);
+
     final formattedDate = DateFormat('MMMM dd, yyyy HH:mm:ss').format(now);
+
     if (mounted) {
       setState(() {
         _currentDateTime = formattedDate;
       });
     }
   }
-
   Future<void> _initializeApp() async {
     try {
       setState(() {
@@ -86,14 +88,14 @@ class _LoginScreenState extends State<LoginScreenJP> {
   Future<void> _loadCurrentLanguage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _currentLanguage = prefs.getString('languageJP') ?? 'ja'; // Default to 'ja'
+      _currentLanguage = prefs.getString('language') ?? 'en'; // Default to 'en'
     });
   }
 
   Future<void> _loadPhOrJp() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _phOrJp = prefs.getString('phorjp') ?? 'jp';
+      _phOrJp = prefs.getString('phorjp') ?? 'ph';
     });
   }
 
@@ -236,6 +238,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
           _idController.text,
           deviceId: _deviceId!,
         );
+
         // Only proceed with WTR insertion if we got past the DTR check
         // Insert WTR record and get response
         final wtrResponse = await _apiService.insertWTR(actualIdNumber);
@@ -489,7 +492,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Image.asset(
-                                'assets/images/japan.png',
+                                'assets/images/philippines.png',
                                 width: 36,
                                 height: 36,
                               ),
