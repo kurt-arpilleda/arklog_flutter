@@ -86,14 +86,14 @@ class _LoginScreenState extends State<LoginScreenJP> {
   Future<void> _loadCurrentLanguage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _currentLanguage = prefs.getString('languageJP') ?? 'ja'; // Default to 'en'
+      _currentLanguage = prefs.getString('languageJP') ?? 'ja'; // Default to 'ja'
     });
   }
 
   Future<void> _loadPhOrJp() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _phOrJp = prefs.getString('phorjp') ?? 'ph';
+      _phOrJp = prefs.getString('phorjp') ?? 'jp';
     });
   }
 
@@ -236,7 +236,6 @@ class _LoginScreenState extends State<LoginScreenJP> {
           _idController.text,
           deviceId: _deviceId!,
         );
-
         // Only proceed with WTR insertion if we got past the DTR check
         // Insert WTR record and get response
         final wtrResponse = await _apiService.insertWTR(actualIdNumber);
@@ -490,7 +489,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Image.asset(
-                                'assets/images/philippines.png',
+                                'assets/images/japan.png',
                                 width: 36,
                                 height: 36,
                               ),
