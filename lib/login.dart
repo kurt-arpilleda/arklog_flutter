@@ -233,118 +233,47 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       try {
-        // First check if there's already a complete WTR record for today
-        final checkResult = await _apiService.checkTodayExistLog(_idController.text);
+        // Get the actual idNumber (in case they logged in with randomId)
+        final actualIdNumber = await _apiService.insertIdNumber(
+          _idController.text,
+          deviceId: _deviceId!,
+        );
 
-        if (checkResult["hasCompleteRecord"] == true) {
-          // Ask user if they want to re-login
-          bool confirmRelogin = await showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: Text("Already Logged In"),
-                content: Text("You already have login data from the PMS. Would you like to login again?"),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: Text("Cancel"),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(true),
-                    child: Text("Login Again"),
-                  ),
-                ],
-              );
-            },
-          );
+        // Only proceed with WTR insertion if we got past the DTR check
+        // Insert WTR record and get response
+        final wtrResponse = await _apiService.insertWTR(actualIdNumber);
 
-          if (confirmRelogin != true) {
-            setState(() {
-              _isLoading = false;
-            });
-            return;
-          }
+        // Use the actual idNumber for fetching profile
+        await _fetchProfile(actualIdNumber);
+        setState(() {
+          _isLoggedIn = true;
+          _currentIdNumber = actualIdNumber;
+          _idController.text = actualIdNumber; // Update the text field with actual idNumber
+        });
 
-          // Proceed with re-login
-          final reloginResponse = await _apiService.reloginWTR(_idController.text);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Successfully logged in with ID: $actualIdNumber')),
+        );
 
-          // Get the actual idNumber (in case they logged in with randomId)
-          final actualIdNumber = await _apiService.insertIdNumber(
-            _idController.text,
-            deviceId: _deviceId!,
-          );
-
-          await _fetchProfile(actualIdNumber);
-          setState(() {
-            _isLoggedIn = true;
-            _currentIdNumber = actualIdNumber;
-            _idController.text = actualIdNumber;
+        // Show late login dialog if applicable
+        if (wtrResponse['isLate'] == true) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: Text("Late Login"),
+                  content: Text(wtrResponse['lateMessage']),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text("OK"),
+                    ),
+                  ],
+                );
+              },
+            );
           });
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Successfully re-logged in with ID: $actualIdNumber')),
-          );
-
-          // Show late login dialog if applicable
-          if (reloginResponse['isLate'] == true) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: Text("Late Re-login"),
-                    content: Text(reloginResponse['lateMessage']),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: Text("OK"),
-                      ),
-                    ],
-                  );
-                },
-              );
-            });
-          }
-        } else {
-          // Original login flow for first login of the day
-          final actualIdNumber = await _apiService.insertIdNumber(
-            _idController.text,
-            deviceId: _deviceId!,
-          );
-
-          // Only proceed with WTR insertion if we got past the DTR check
-          final wtrResponse = await _apiService.insertWTR(actualIdNumber);
-
-          await _fetchProfile(actualIdNumber);
-          setState(() {
-            _isLoggedIn = true;
-            _currentIdNumber = actualIdNumber;
-            _idController.text = actualIdNumber;
-          });
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Successfully logged in with ID: $actualIdNumber')),
-          );
-
-          if (wtrResponse['isLate'] == true) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: Text("Late Login"),
-                    content: Text(wtrResponse['lateMessage']),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: Text("OK"),
-                      ),
-                    ],
-                  );
-                },
-              );
-            });
-          }
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -360,15 +289,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _logout() async {
     try {
-      // First check if there's already a complete WTR record for today
-      final checkResult = await _apiService.checkTodayExistLog(_currentIdNumber!);
-
-      bool useRelogout = checkResult["hasCompleteRecord"] == true;
-
       // Call the confirmLogoutWTR API to check if the user is trying to log out before shift end
-      final confirmResult = useRelogout
-          ? await _apiService.confirmLogoutWTR(_currentIdNumber!)
-          : await _apiService.confirmLogoutWTR(_currentIdNumber!);
+      final confirmResult = await _apiService.confirmLogoutWTR(_currentIdNumber!);
 
       // Display different dialog based on whether it's an undertime logout or not
       bool confirm = false;
@@ -379,16 +301,16 @@ class _LoginScreenState extends State<LoginScreen> {
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
-              title: Text(useRelogout ? "Early Re-logout" : "Early Logout"),
+              title: const Text("Early Logout"),
               content: Text("Your shift ends at ${confirmResult["shiftOut"]}. Are you sure you want to logout now?"),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
-                  child: Text("Cancel"),
+                  child: const Text("Cancel"),
                 ),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(true),
-                  child: Text(useRelogout ? "Re-logout Anyway" : "Logout Anyway"),
+                  child: const Text("Logout Anyway"),
                 ),
               ],
             );
@@ -400,18 +322,16 @@ class _LoginScreenState extends State<LoginScreen> {
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
-              title: Text(useRelogout ? "Confirm Re-logout" : "Confirm Logout"),
-              content: Text(useRelogout
-                  ? "Are you sure you want to re-logout?"
-                  : "Are you sure you want to logout?"),
+              title: const Text("Confirm Logout"),
+              content: const Text("Are you sure you want to logout?"),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
-                  child: Text("Cancel"),
+                  child: const Text("Cancel"),
                 ),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(true),
-                  child: Text(useRelogout ? "Re-logout" : "Logout"),
+                  child: const Text("Logout"),
                 ),
               ],
             );
@@ -427,11 +347,7 @@ class _LoginScreenState extends State<LoginScreen> {
         try {
           // First logout from WTR system
           if (_currentIdNumber != null) {
-            if (useRelogout) {
-              await _apiService.relogoutWTR(_currentIdNumber!);
-            } else {
-              await _apiService.logoutWTR(_currentIdNumber!);
-            }
+            await _apiService.logoutWTR(_currentIdNumber!);
           }
 
           // Then logout from the device tracking system
@@ -447,17 +363,13 @@ class _LoginScreenState extends State<LoginScreen> {
           });
 
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                useRelogout ? 'Re-logged out successfully' : 'Logged out successfully',
-              ),
-            ),
+            const SnackBar(content: Text('Logged out successfully')),
           );
         } catch (e) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Error: ${e.toString()}')),
-            );
-          } finally {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error: ${e.toString()}')),
+          );
+        } finally {
           setState(() {
             _isLoading = false;
           });
