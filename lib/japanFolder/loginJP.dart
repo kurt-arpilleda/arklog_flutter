@@ -50,11 +50,12 @@ class _LoginScreenState extends State<LoginScreenJP> {
 
   }
   void _updateDateTime() {
-    // Get Manila timezone
-    final manila = tz.getLocation('Asia/Manila');
-    final now = tz.TZDateTime.now(manila);
+    final tokyo = tz.getLocation('Asia/Tokyo');
+    final now = tz.TZDateTime.now(tokyo);
+
 
     final formattedDate = DateFormat('MMMM dd, yyyy HH:mm:ss').format(now);
+
 
     if (mounted) {
       setState(() {
@@ -62,6 +63,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
       });
     }
   }
+
   Future<void> _initializeApp() async {
     try {
       setState(() {
@@ -492,7 +494,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Image.asset(
-                                'assets/images/philippines.png',
+                                'assets/images/japan.png',
                                 width: 36,
                                 height: 36,
                               ),
