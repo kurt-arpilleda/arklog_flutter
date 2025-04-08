@@ -543,7 +543,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                           child: Column(
                             children: [
                               Text(
-                                'ARK LOG PH',
+                                'ARK LOG JP',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 24,
@@ -612,7 +612,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                           child: Row(
                             children: [
                               Text(
-                                "Keyboard",
+                                "キーボード",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -638,7 +638,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                   child: Row(
                     children: [
                       Text(
-                        "Country",
+                        "国",
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -769,7 +769,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                     child: Column(
                       children: [
                         Text(
-                          _isLoggedIn ? 'Welcome ${_firstName ?? ""}' : 'Enter your ID number',
+                          _isLoggedIn ? 'ようこそ ${_firstName ?? ""}' : 'ID番号を入力してください',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 24,
@@ -903,7 +903,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                               child: _isLoading
                                   ? const CircularProgressIndicator(color: Colors.white)
                                   : Text(
-                                _isLoggedIn ? 'LOGOUT' : 'LOGIN',
+                                _isLoggedIn ? 'ログアウト' : 'ログイン',
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
