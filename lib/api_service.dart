@@ -146,7 +146,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_insertWTR2.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_insertWTR.php");
           final response = await http.post(
             uri,
             body: {
