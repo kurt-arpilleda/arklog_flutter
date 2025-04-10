@@ -16,7 +16,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_fetchProfile.php?idNumber=$idNumber");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchProfile.php?idNumber=$idNumber");
           final response = await http.get(uri).timeout(requestTimeout);
 
           if (response.statusCode == 200) {
@@ -38,7 +38,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_getLastId.php?deviceId=$deviceId");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_getLastId.php?deviceId=$deviceId");
           final response = await http.get(uri).timeout(requestTimeout);
 
           if (response.statusCode == 200) {
@@ -64,7 +64,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_logout.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_logout.php");
           final response = await http.post(
             uri,
             body: {'deviceId': deviceId},
@@ -93,7 +93,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_confirmLogoutWTR.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_confirmLogoutWTR.php");
           final response = await http.post(
             uri,
             body: {'idNumber': idNumber},
@@ -123,7 +123,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_idLog.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_idLog.php");
           final response = await http.post(
             uri,
             body: {
@@ -165,7 +165,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_checkDTR.php?idNumber=$idNumber");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkDTR.php?idNumber=$idNumber");
           final response = await http.get(uri).timeout(requestTimeout);
 
           if (response.statusCode == 200) {
@@ -188,7 +188,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_insertWTR2.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_insertWTR.php");
           final response = await http.post(
             uri,
             body: {
@@ -239,7 +239,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_logoutWTR2.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_logoutWTR.php");
           final response = await http.post(
             uri,
             body: {'idNumber': idNumber},
@@ -273,7 +273,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_checkActiveWTR.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkActiveWTR.php");
           final response = await http.post(
             uri,
             body: {'idNumber': idNumber},
@@ -302,7 +302,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_fetchTimeIn.php?idNumber=$idNumber");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchTimeIn.php?idNumber=$idNumber");
           final response = await http.get(uri).timeout(requestTimeout);
 
           if (response.statusCode == 200) {
@@ -323,7 +323,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_checkActiveLogin.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkActiveLogin.php");
           final response = await http.post(
             uri,
             body: {
