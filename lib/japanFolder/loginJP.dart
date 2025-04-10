@@ -265,7 +265,11 @@ class _LoginScreenState extends State<LoginScreenJP> {
         );
 
         // Only proceed with WTR insertion if we got past the DTR check
-        final wtrResponse = await _apiService.insertWTR(actualIdNumber);
+        // Pass the deviceId to insertWTR to store the phoneName
+        final wtrResponse = await _apiService.insertWTR(
+          actualIdNumber,
+          deviceId: _deviceId!,
+        );
 
         // Use the actual idNumber for fetching profile (do this regardless of active session)
         await _fetchProfile(actualIdNumber);
