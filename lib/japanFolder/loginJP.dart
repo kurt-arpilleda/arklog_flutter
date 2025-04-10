@@ -39,6 +39,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
   bool _isCountryLoadingPh = false;
   bool _isCountryLoadingJp = false;
   String _currentDateTime = '';
+  String? _latestTimeIn;
   Timer? _timer;
   @override
   void initState() {
@@ -53,9 +54,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
     final tokyo = tz.getLocation('Asia/Tokyo');
     final now = tz.TZDateTime.now(tokyo);
 
-
     final formattedDate = DateFormat('MMMM dd, yyyy HH:mm:ss').format(now);
-
 
     if (mounted) {
       setState(() {
@@ -90,14 +89,14 @@ class _LoginScreenState extends State<LoginScreenJP> {
   Future<void> _loadCurrentLanguage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _currentLanguage = prefs.getString('language') ?? 'en'; // Default to 'en'
+      _currentLanguage = prefs.getString('language') ?? 'ja'; // Default to 'en'
     });
   }
 
   Future<void> _loadPhOrJp() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _phOrJp = prefs.getString('phorjp') ?? 'ph';
+      _phOrJp = prefs.getString('phorjp') ?? 'jp';
     });
   }
 
@@ -207,15 +206,30 @@ class _LoginScreenState extends State<LoginScreenJP> {
         String fallbackUrl = "${ApiServiceJP.apiUrls[1]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
         bool isFallbackUrlValid = await _isImageAvailable(fallbackUrl);
 
+        // Fetch timeIn records
+        final timeInData = await _apiService.fetchTimeIns(idNumber);
+        String? latestTimeIn = timeInData["latestTimeIn"] != null
+            ? _formatTimeIn(timeInData["latestTimeIn"])
+            : null;
+
         setState(() {
           _firstName = profileData["firstName"];
           _surName = profileData["surName"];
           _profilePictureUrl = isPrimaryUrlValid ? primaryUrl : isFallbackUrlValid ? fallbackUrl : null;
-          _currentIdNumber = idNumber; // Ensure this is the actual idNumber
+          _currentIdNumber = idNumber;
+          _latestTimeIn = latestTimeIn;
         });
       }
     } catch (e) {
       print("Error fetching profile: $e");
+    }
+  }
+  String _formatTimeIn(String timeIn) {
+    try {
+      DateTime dateTime = DateTime.parse(timeIn);
+      return DateFormat('hh:mm a').format(dateTime);
+    } catch (e) {
+      return timeIn; // return as-is if parsing fails
     }
   }
 
@@ -235,6 +249,15 @@ class _LoginScreenState extends State<LoginScreenJP> {
       });
 
       try {
+        // First check for active login before proceeding with insertIdNumber
+        final activeLoginCheck = await _apiService.checkActiveLogin(_idController.text);
+        if (activeLoginCheck["hasActiveLogin"] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('別のデバイスでアクティブなログインセッションがあります')),
+          );
+          return; // Exit the function early
+        }
+
         // Get the actual idNumber (in case they logged in with randomId)
         final actualIdNumber = await _apiService.insertIdNumber(
           _idController.text,
@@ -242,34 +265,45 @@ class _LoginScreenState extends State<LoginScreenJP> {
         );
 
         // Only proceed with WTR insertion if we got past the DTR check
-        // Insert WTR record and get response
         final wtrResponse = await _apiService.insertWTR(actualIdNumber);
 
-        // Use the actual idNumber for fetching profile
+        // Use the actual idNumber for fetching profile (do this regardless of active session)
         await _fetchProfile(actualIdNumber);
         setState(() {
           _isLoggedIn = true;
           _currentIdNumber = actualIdNumber;
-          _idController.text = actualIdNumber; // Update the text field with actual idNumber
+          _idController.text = actualIdNumber;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Successfully logged in with ID: $actualIdNumber')),
-        );
-
-        // Show late login dialog if applicable
-        if (wtrResponse['isLate'] == true) {
+        // Show late login or relogin dialog if applicable
+        if (wtrResponse['isLate'] == true || wtrResponse['isRelogin'] == true) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             showDialog(
               context: context,
               builder: (BuildContext context) {
+                String title;
+                String message;
+
+                if (wtrResponse['isRelogin'] == true && wtrResponse['isLate'] == true) {
+                  title = "再ログイン（遅刻）";
+                  message = "再ログインしましたが、シフトに遅れています";
+                }
+                else if (wtrResponse['isRelogin'] == true) {
+                  title = "再ログイン";
+                  message = "再ログインしました";
+                }
+                else {
+                  title = "遅刻ログイン";
+                  message = wtrResponse['lateMessage'] ?? "シフトに遅れています";
+                }
+
                 return AlertDialog(
-                  title: Text("Late Login"),
-                  content: Text(wtrResponse['lateMessage']),
+                  title: Text(title),
+                  content: Text(message),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      child: Text("OK"),
+                      child: Text("了解"),
                     ),
                   ],
                 );
@@ -277,6 +311,10 @@ class _LoginScreenState extends State<LoginScreenJP> {
             );
           });
         }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('ID: $actualIdNumber で正常にログインしました')),
+        );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
@@ -291,91 +329,107 @@ class _LoginScreenState extends State<LoginScreenJP> {
 
   Future<void> _logout() async {
     try {
-      // Call the confirmLogoutWTR API to check if the user is trying to log out before shift end
-      final confirmResult = await _apiService.confirmLogoutWTR(_currentIdNumber!);
+      // First check if there are any active WTR sessions
+      final activeSessionsCheck = await _apiService.checkActiveWTR(_currentIdNumber!);
 
-      // Display different dialog based on whether it's an undertime logout or not
-      bool confirm = false;
+      // Only proceed with confirm logout if there are active sessions
+      if (activeSessionsCheck["hasActiveSessions"] == true) {
+        // Call the confirmLogoutWTR API to check if the user is trying to log out before shift end
+        final confirmResult = await _apiService.confirmLogoutWTR(_currentIdNumber!);
 
-      if (confirmResult["isUndertime"] == true) {
-        // Show undertime-specific dialog
-        confirm = await showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text("Early Logout"),
-              content: Text("Your shift ends at ${confirmResult["shiftOut"]}. Are you sure you want to logout now?"),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text("Cancel"),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text("Logout Anyway"),
-                ),
-              ],
-            );
-          },
-        );
-      } else {
-        // Standard logout confirmation dialog
-        confirm = await showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text("Confirm Logout"),
-              content: const Text("Are you sure you want to logout?"),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text("Cancel"),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text("Logout"),
-                ),
-              ],
-            );
-          },
-        );
+        // Display different dialog based on whether it's an undertime logout or not
+        bool confirm = false;
+
+        if (confirmResult["isUndertime"] == true) {
+          // Show undertime-specific dialog
+          confirm = await showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text("早退"),
+                content: Text("あなたのシフトは${confirmResult["shiftOut"]}に終了します。今すぐログアウトしてもよろしいですか？"),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text("キャンセル"),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text("それでもログアウト"),
+                  ),
+                ],
+              );
+            },
+          );
+        } else {
+          // Standard logout confirmation dialog
+          confirm = await showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text("ログアウトの確認"),
+                content: const Text("本当にログアウトしてもよろしいですか？"),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text("キャンセル"),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text("ログアウト"),
+                  ),
+                ],
+              );
+            },
+          );
+        }
+
+        if (confirm != true) {
+          return; // User cancelled the logout
+        }
       }
 
-      if (confirm == true) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        // Only logout from WTR system if there are active sessions
+        if (activeSessionsCheck["hasActiveSessions"] == true) {
+          final logoutResult = await _apiService.logoutWTR(_currentIdNumber!);
+
+          // Check if this was an undertime logout
+          if (logoutResult["isUndertime"] == true) {
+            // Show undertime message
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('シフト終了前にログアウトしました')),
+            );
+          }
+        }
+
+        // Always logout from the device tracking system
+        await _apiService.logout(_deviceId!);
+
         setState(() {
-          _isLoading = true;
+          _isLoggedIn = false;
+          _firstName = null;
+          _surName = null;
+          _profilePictureUrl = null;
+          _currentIdNumber = null;
+          _idController.clear();
         });
 
-        try {
-          // First logout from WTR system
-          if (_currentIdNumber != null) {
-            await _apiService.logoutWTR(_currentIdNumber!);
-          }
-
-          // Then logout from the device tracking system
-          await _apiService.logout(_deviceId!);
-
-          setState(() {
-            _isLoggedIn = false;
-            _firstName = null;
-            _surName = null;
-            _profilePictureUrl = null;
-            _currentIdNumber = null;
-            _idController.clear();
-          });
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Logged out successfully')),
-          );
-        } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: ${e.toString()}')),
-          );
-        } finally {
-          setState(() {
-            _isLoading = false;
-          });
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ログアウトに成功しました')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
+        );
+      } finally {
+        setState(() {
+          _isLoading = false;
+        });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -854,6 +908,18 @@ class _LoginScreenState extends State<LoginScreenJP> {
                                     ],
                                   ),
                                 ),
+                                if (_latestTimeIn != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '最後のログイン: $_latestTimeIn',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ],
                           ),
@@ -862,7 +928,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                             TextFormField(
                               controller: _idController,
                               decoration: InputDecoration(
-                                labelText: 'ID Number',
+                                labelText: 'ID番号',
                                 prefixIcon: const Icon(Icons.badge),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
@@ -872,7 +938,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Please enter your ID number';
+                                  return 'ID番号を入力してください';
                                 }
                                 return null;
                               },
