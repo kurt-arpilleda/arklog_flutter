@@ -355,7 +355,15 @@ class _LoginScreenState extends State<LoginScreen> {
         try {
           // First logout from WTR system
           if (_currentIdNumber != null) {
-            await _apiService.logoutWTR(_currentIdNumber!);
+            final logoutResult = await _apiService.logoutWTR(_currentIdNumber!);
+
+            // Check if this was an undertime logout
+            if (logoutResult["isUndertime"] == true) {
+              // Show undertime message
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('You have logged out before your shift ended')),
+              );
+            }
           }
 
           // Then logout from the device tracking system
@@ -374,9 +382,9 @@ class _LoginScreenState extends State<LoginScreen> {
             const SnackBar(content: Text('Logged out successfully')),
           );
         } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: ${e.toString()}')),
-          );
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   // SnackBar(content: Text('Error: ${e.toString()}')),
+          // );
         } finally {
           setState(() {
             _isLoading = false;
