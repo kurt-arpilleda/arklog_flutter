@@ -319,4 +319,31 @@ class ApiService {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+  Future<Map<String, dynamic>> checkActiveLogin(String idNumber) async {
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      for (String apiUrl in apiUrls) {
+        try {
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_checkActiveLogin.php");
+          final response = await http.post(
+            uri,
+            body: {
+              'idNumber': idNumber,
+            },
+          ).timeout(requestTimeout);
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            return data;
+          }
+        } catch (e) {
+          // Continue with retry logic
+        }
+      }
+      if (attempt < maxRetries) {
+        final delay = initialRetryDelay * (1 << (attempt - 1));
+        await Future.delayed(delay);
+      }
+    }
+    throw Exception("Both API URLs are unreachable after $maxRetries attempts");
+  }
 }

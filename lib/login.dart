@@ -249,6 +249,15 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       try {
+        // First check for active login before proceeding with insertIdNumber
+        final activeLoginCheck = await _apiService.checkActiveLogin(_idController.text);
+        if (activeLoginCheck["hasActiveLogin"] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('You have an active login session on another device')),
+          );
+          return; // Exit the function early
+        }
+
         // Get the actual idNumber (in case they logged in with randomId)
         final actualIdNumber = await _apiService.insertIdNumber(
           _idController.text,
@@ -266,53 +275,46 @@ class _LoginScreenState extends State<LoginScreen> {
           _idController.text = actualIdNumber;
         });
 
-        // Check if there's an active login without logout
-        if (wtrResponse["hasActiveLogin"] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('You have an active login session on another device')),
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Successfully logged in with ID: $actualIdNumber')),
-          );
+        // Show late login or relogin dialog if applicable
+        if (wtrResponse['isLate'] == true || wtrResponse['isRelogin'] == true) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                String title;
+                String message;
 
-          // Show late login or relogin dialog if applicable
-          if (wtrResponse['isLate'] == true || wtrResponse['isRelogin'] == true) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              showDialog(
-                context: context,
-                builder: (BuildContext context) {
-                  String title;
-                  String message;
+                if (wtrResponse['isRelogin'] == true && wtrResponse['isLate'] == true) {
+                  title = "Relogin (Late)";
+                  message = "You have relogged in and you are late for your shift";
+                }
+                else if (wtrResponse['isRelogin'] == true) {
+                  title = "Relogin";
+                  message = "You have relogged in";
+                }
+                else {
+                  title = "Late Login";
+                  message = wtrResponse['lateMessage'] ?? "You are late for your shift";
+                }
 
-                  if (wtrResponse['isRelogin'] == true && wtrResponse['isLate'] == true) {
-                    title = "Relogin (Late)";
-                    message = "You have relogged in and you are late for your shift";
-                  }
-                  else if (wtrResponse['isRelogin'] == true) {
-                    title = "Relogin";
-                    message = "You have relogged in";
-                  }
-                  else {
-                    title = "Late Login";
-                    message = wtrResponse['lateMessage'] ?? "You are late for your shift";
-                  }
-
-                  return AlertDialog(
-                    title: Text(title),
-                    content: Text(message),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(),
-                        child: Text("OK"),
-                      ),
-                    ],
-                  );
-                },
-              );
-            });
-          }
+                return AlertDialog(
+                  title: Text(title),
+                  content: Text(message),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: Text("OK"),
+                    ),
+                  ],
+                );
+              },
+            );
+          });
         }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Successfully logged in with ID: $actualIdNumber')),
+        );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
