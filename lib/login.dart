@@ -240,40 +240,48 @@ class _LoginScreenState extends State<LoginScreen> {
         );
 
         // Only proceed with WTR insertion if we got past the DTR check
-        // Insert WTR record and get response
         final wtrResponse = await _apiService.insertWTR(actualIdNumber);
 
-        // Use the actual idNumber for fetching profile
+        // Use the actual idNumber for fetching profile (do this regardless of active session)
         await _fetchProfile(actualIdNumber);
         setState(() {
           _isLoggedIn = true;
           _currentIdNumber = actualIdNumber;
-          _idController.text = actualIdNumber; // Update the text field with actual idNumber
+          _idController.text = actualIdNumber;
         });
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Successfully logged in with ID: $actualIdNumber')),
-        );
+        // Check if there's an active login without logout
+        if (wtrResponse["hasActiveLogin"] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('You have an active login session on another device')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Successfully logged in with ID: $actualIdNumber')),
+          );
 
-        // Show late login dialog if applicable
-        if (wtrResponse['isLate'] == true) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                  title: Text("Late Login"),
-                  content: Text(wtrResponse['lateMessage']),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text("OK"),
-                    ),
-                  ],
-                );
-              },
-            );
-          });
+          // Show late login or relogin dialog if applicable
+          if (wtrResponse['isLate'] == true || wtrResponse['isRelogin'] == true) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              showDialog(
+                context: context,
+                builder: (BuildContext context) {
+                  return AlertDialog(
+                    title: Text(wtrResponse['isRelogin'] == true ? "Relogin" : "Late Login"),
+                    content: Text(wtrResponse['isRelogin'] == true
+                        ? "You have relogged in"
+                        : wtrResponse['lateMessage']),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text("OK"),
+                      ),
+                    ],
+                  );
+                },
+              );
+            });
+          }
         }
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(

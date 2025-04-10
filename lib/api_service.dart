@@ -188,7 +188,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_insertWTR.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_insertWTR2.php");
           final response = await http.post(
             uri,
             body: {
@@ -199,7 +199,15 @@ class ApiService {
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
             if (data["success"] == true) {
-              // Check if WTR record already existed
+              // Check if there's an active login without logout
+              if (data["hasActiveLogin"] == true) {
+                return {
+                  "success": true,
+                  "message": "Existing WTR login found without logout",
+                  "hasActiveLogin": true,
+                };
+              }
+              // Check if WTR record already existed (completed session)
               if (data["alreadyExists"] == true) {
                 return {
                   "success": true,
@@ -226,11 +234,12 @@ class ApiService {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
-  Future<void> logoutWTR(String idNumber) async {
+
+  Future<Map<String, dynamic>> logoutWTR(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_logoutWTR.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_logoutWTR2.php");
           final response = await http.post(
             uri,
             body: {'idNumber': idNumber},
@@ -241,13 +250,10 @@ class ApiService {
             if (data["success"] == true) {
               // Skip if already logged out
               if (data['alreadyLoggedOut'] == true) {
-                return;
+                return data;
               }
-              // Show undertime dialog if applicable
-              if (data['isUndertime'] == true) {
-                return data; // You can handle this in your UI
-              }
-              return;
+              // Return undertime data if applicable
+              return data;
             } else {
               throw Exception(data["message"]);
             }
