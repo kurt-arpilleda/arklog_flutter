@@ -39,6 +39,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isCountryLoadingPh = false;
   bool _isCountryLoadingJp = false;
   String _currentDateTime = '';
+  String? _latestTimeIn;
   Timer? _timer;
   @override
   void initState() {
@@ -205,15 +206,30 @@ class _LoginScreenState extends State<LoginScreen> {
         String fallbackUrl = "${ApiService.apiUrls[1]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
         bool isFallbackUrlValid = await _isImageAvailable(fallbackUrl);
 
+        // Fetch timeIn records
+        final timeInData = await _apiService.fetchTimeIns(idNumber);
+        String? latestTimeIn = timeInData["latestTimeIn"] != null
+            ? _formatTimeIn(timeInData["latestTimeIn"])
+            : null;
+
         setState(() {
           _firstName = profileData["firstName"];
           _surName = profileData["surName"];
           _profilePictureUrl = isPrimaryUrlValid ? primaryUrl : isFallbackUrlValid ? fallbackUrl : null;
-          _currentIdNumber = idNumber; // Ensure this is the actual idNumber
+          _currentIdNumber = idNumber;
+          _latestTimeIn = latestTimeIn;
         });
       }
     } catch (e) {
       print("Error fetching profile: $e");
+    }
+  }
+  String _formatTimeIn(String timeIn) {
+    try {
+      DateTime dateTime = DateTime.parse(timeIn);
+      return DateFormat('hh:mm a').format(dateTime);
+    } catch (e) {
+      return timeIn; // return as-is if parsing fails
     }
   }
 
@@ -890,6 +906,18 @@ class _LoginScreenState extends State<LoginScreen> {
                                     ],
                                   ),
                                 ),
+                                if (_latestTimeIn != null) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Last Login: $_latestTimeIn',
+                                    style: TextStyle(
+                                      color: Colors.grey[600],
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ],
                           ),
