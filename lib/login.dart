@@ -266,11 +266,25 @@ class _LoginScreenState extends State<LoginScreen> {
               showDialog(
                 context: context,
                 builder: (BuildContext context) {
+                  String title;
+                  String message;
+
+                  if (wtrResponse['isRelogin'] == true && wtrResponse['isLate'] == true) {
+                    title = "Relogin (Late)";
+                    message = "You have relogged in and you are late for your shift";
+                  }
+                  else if (wtrResponse['isRelogin'] == true) {
+                    title = "Relogin";
+                    message = "You have relogged in";
+                  }
+                  else {
+                    title = "Late Login";
+                    message = wtrResponse['lateMessage'] ?? "You are late for your shift";
+                  }
+
                   return AlertDialog(
-                    title: Text(wtrResponse['isRelogin'] == true ? "Relogin" : "Late Login"),
-                    content: Text(wtrResponse['isRelogin'] == true
-                        ? "You have relogged in"
-                        : wtrResponse['lateMessage']),
+                    title: Text(title),
+                    content: Text(message),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.of(context).pop(),
@@ -297,99 +311,107 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _logout() async {
     try {
-      // Call the confirmLogoutWTR API to check if the user is trying to log out before shift end
-      final confirmResult = await _apiService.confirmLogoutWTR(_currentIdNumber!);
+      // First check if there are any active WTR sessions
+      final activeSessionsCheck = await _apiService.checkActiveWTR(_currentIdNumber!);
 
-      // Display different dialog based on whether it's an undertime logout or not
-      bool confirm = false;
+      // Only proceed with confirm logout if there are active sessions
+      if (activeSessionsCheck["hasActiveSessions"] == true) {
+        // Call the confirmLogoutWTR API to check if the user is trying to log out before shift end
+        final confirmResult = await _apiService.confirmLogoutWTR(_currentIdNumber!);
 
-      if (confirmResult["isUndertime"] == true) {
-        // Show undertime-specific dialog
-        confirm = await showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text("Early Logout"),
-              content: Text("Your shift ends at ${confirmResult["shiftOut"]}. Are you sure you want to logout now?"),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text("Cancel"),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text("Logout Anyway"),
-                ),
-              ],
-            );
-          },
-        );
-      } else {
-        // Standard logout confirmation dialog
-        confirm = await showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text("Confirm Logout"),
-              content: const Text("Are you sure you want to logout?"),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text("Cancel"),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(true),
-                  child: const Text("Logout"),
-                ),
-              ],
-            );
-          },
-        );
+        // Display different dialog based on whether it's an undertime logout or not
+        bool confirm = false;
+
+        if (confirmResult["isUndertime"] == true) {
+          // Show undertime-specific dialog
+          confirm = await showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text("Early Logout"),
+                content: Text("Your shift ends at ${confirmResult["shiftOut"]}. Are you sure you want to logout now?"),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text("Cancel"),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text("Logout Anyway"),
+                  ),
+                ],
+              );
+            },
+          );
+        } else {
+          // Standard logout confirmation dialog
+          confirm = await showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text("Confirm Logout"),
+                content: const Text("Are you sure you want to logout?"),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text("Cancel"),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text("Logout"),
+                  ),
+                ],
+              );
+            },
+          );
+        }
+
+        if (confirm != true) {
+          return; // User cancelled the logout
+        }
       }
 
-      if (confirm == true) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        // Only logout from WTR system if there are active sessions
+        if (activeSessionsCheck["hasActiveSessions"] == true) {
+          final logoutResult = await _apiService.logoutWTR(_currentIdNumber!);
+
+          // Check if this was an undertime logout
+          if (logoutResult["isUndertime"] == true) {
+            // Show undertime message
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('You have logged out before your shift ended')),
+            );
+          }
+        }
+
+        // Always logout from the device tracking system
+        await _apiService.logout(_deviceId!);
+
         setState(() {
-          _isLoading = true;
+          _isLoggedIn = false;
+          _firstName = null;
+          _surName = null;
+          _profilePictureUrl = null;
+          _currentIdNumber = null;
+          _idController.clear();
         });
 
-        try {
-          // First logout from WTR system
-          if (_currentIdNumber != null) {
-            final logoutResult = await _apiService.logoutWTR(_currentIdNumber!);
-
-            // Check if this was an undertime logout
-            if (logoutResult["isUndertime"] == true) {
-              // Show undertime message
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('You have logged out before your shift ended')),
-              );
-            }
-          }
-
-          // Then logout from the device tracking system
-          await _apiService.logout(_deviceId!);
-
-          setState(() {
-            _isLoggedIn = false;
-            _firstName = null;
-            _surName = null;
-            _profilePictureUrl = null;
-            _currentIdNumber = null;
-            _idController.clear();
-          });
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Logged out successfully')),
-          );
-        } catch (e) {
-          // ScaffoldMessenger.of(context).showSnackBar(
-          //   // SnackBar(content: Text('Error: ${e.toString()}')),
-          // );
-        } finally {
-          setState(() {
-            _isLoading = false;
-          });
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Logged out successfully')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
+        );
+      } finally {
+        setState(() {
+          _isLoading = false;
+        });
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
