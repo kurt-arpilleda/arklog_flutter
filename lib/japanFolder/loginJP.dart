@@ -54,7 +54,8 @@ class _LoginScreenState extends State<LoginScreenJP> {
     final tokyo = tz.getLocation('Asia/Tokyo');
     final now = tz.TZDateTime.now(tokyo);
 
-    final formattedDate = DateFormat('MMMM dd, yyyy HH:mm:ss').format(now);
+    // Change the date format to Japanese style
+    final formattedDate = DateFormat('yyyy年MM月dd日 HH:mm:ss').format(now);
 
     if (mounted) {
       setState(() {
@@ -62,7 +63,6 @@ class _LoginScreenState extends State<LoginScreenJP> {
       });
     }
   }
-
   Future<void> _initializeApp() async {
     try {
       setState(() {
@@ -826,7 +826,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                           _isLoggedIn ? 'ようこそ ${_firstName ?? ""}' : 'ID番号を入力してください',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 24,
+                            fontSize: 23,
                             overflow: TextOverflow.ellipsis,
                             fontWeight: FontWeight.bold,
                           ),
