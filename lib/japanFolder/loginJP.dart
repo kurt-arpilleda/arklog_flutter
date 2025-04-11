@@ -934,6 +934,13 @@ class _LoginScreenState extends State<LoginScreenJP> {
                               decoration: InputDecoration(
                                 labelText: 'ID番号',
                                 prefixIcon: const Icon(Icons.badge),
+                                suffixIcon: _idController.text.isNotEmpty
+                                    ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    _idController.clear();
+                                  },
+                                ) : null,
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
                                 ),
@@ -946,12 +953,16 @@ class _LoginScreenState extends State<LoginScreenJP> {
                                 }
                                 return null;
                               },
+                              onChanged: (_) {
+                                // This triggers a rebuild to show/hide the clear icon
+                                (context as Element).markNeedsBuild();
+                              },
                               onFieldSubmitted: (value) {
                                 if (!_isLoading && !_isLoggedIn && _formKey.currentState!.validate()) {
                                   _login();
                                 }
                               },
-                              textInputAction: TextInputAction.go, // This changes the keyboard's action button to "GO"
+                              textInputAction: TextInputAction.go,
                             ),
                           const SizedBox(height: 24),
                           SizedBox(
