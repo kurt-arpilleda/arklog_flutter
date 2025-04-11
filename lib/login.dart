@@ -336,10 +336,16 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _logout() async {
-    final bool? qrVerified = await _showQrScanner();
 
-    if (qrVerified != true) {
-      return;
+    final exemptedIds = ['1238', '1243', '0939', '1163', '1239', '1288', '1200'];
+    final isExempted = exemptedIds.contains(_currentIdNumber);
+
+    // Only show QR scanner for non exempted users
+    if (!isExempted) {
+      final bool? qrVerified = await _showQrScanner();
+      if (qrVerified != true) {
+        return;
+      }
     }
     try {
       // First check if there are any active WTR sessions
@@ -375,26 +381,32 @@ class _LoginScreenState extends State<LoginScreen> {
             },
           );
         } else {
-          // Standard logout confirmation dialog
-          confirm = await showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text("Confirm Logout"),
-                content: const Text("Are you sure you want to logout?"),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text("Cancel"),
-                  ),
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text("Logout"),
-                  ),
-                ],
-              );
-            },
-          );
+          // For management, skip confirmation dialog
+          if (!isExempted) {
+            // Standard logout confirmation dialog for non-management
+            confirm = await showDialog(
+              context: context,
+              builder: (BuildContext context) {
+                return AlertDialog(
+                  title: const Text("Confirm Logout"),
+                  content: const Text("Are you sure you want to logout?"),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text("Cancel"),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: const Text("Logout"),
+                    ),
+                  ],
+                );
+              },
+            );
+          } else {
+            // Management can logout without confirmation
+            confirm = true;
+          }
         }
 
         if (confirm != true) {
