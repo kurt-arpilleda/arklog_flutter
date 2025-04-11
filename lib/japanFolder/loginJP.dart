@@ -11,6 +11,7 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
+import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 
 class LoginScreenJP extends StatefulWidget {
   const LoginScreenJP({super.key});
@@ -24,6 +25,8 @@ class _LoginScreenState extends State<LoginScreenJP> {
   final _formKey = GlobalKey<FormState>();
   final ApiServiceJP _apiService = ApiServiceJP();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+  QRViewController? qrController;
   bool _isLoading = false;
   bool _isInitializing = true; // New flag for initial loading
   String? _firstName;
@@ -40,6 +43,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
   bool _isCountryLoadingJp = false;
   String _currentDateTime = '';
   String? _latestTimeIn;
+  String? _qrErrorMessage;
   Timer? _timer;
   @override
   void initState() {
@@ -247,7 +251,6 @@ class _LoginScreenState extends State<LoginScreenJP> {
       setState(() {
         _isLoading = true;
       });
-
       try {
         // First check for active login before proceeding with insertIdNumber
         final activeLoginCheck = await _apiService.checkActiveLogin(_idController.text);
@@ -257,20 +260,17 @@ class _LoginScreenState extends State<LoginScreenJP> {
           );
           return; // Exit the function early
         }
-
         // Get the actual idNumber (in case they logged in with randomId)
         final actualIdNumber = await _apiService.insertIdNumber(
           _idController.text,
           deviceId: _deviceId!,
         );
-
         // Only proceed with WTR insertion if we got past the DTR check
         // Pass the deviceId to insertWTR to store the phoneName
         final wtrResponse = await _apiService.insertWTR(
           actualIdNumber,
           deviceId: _deviceId!,
         );
-
         // Use the actual idNumber for fetching profile (do this regardless of active session)
         await _fetchProfile(actualIdNumber);
         setState(() {
@@ -278,7 +278,6 @@ class _LoginScreenState extends State<LoginScreenJP> {
           _currentIdNumber = actualIdNumber;
           _idController.text = actualIdNumber;
         });
-
         // Show late login or relogin dialog if applicable
         if (wtrResponse['isLate'] == true || wtrResponse['isRelogin'] == true) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -287,7 +286,6 @@ class _LoginScreenState extends State<LoginScreenJP> {
               builder: (BuildContext context) {
                 String title;
                 String message;
-
                 if (wtrResponse['isRelogin'] == true && wtrResponse['isLate'] == true) {
                   title = "再ログイン（遅刻）";
                   message = "再ログインしましたが、シフトに遅れています";
@@ -300,7 +298,6 @@ class _LoginScreenState extends State<LoginScreenJP> {
                   title = "遅刻ログイン";
                   message = wtrResponse['lateMessage'] ?? "シフトに遅れています";
                 }
-
                 return AlertDialog(
                   title: Text(title),
                   content: Text(message),
@@ -315,7 +312,6 @@ class _LoginScreenState extends State<LoginScreenJP> {
             );
           });
         }
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('ID: $actualIdNumber で正常にログインしました')),
         );
@@ -332,6 +328,11 @@ class _LoginScreenState extends State<LoginScreenJP> {
   }
 
   Future<void> _logout() async {
+    final bool? qrVerified = await _showQrScanner();
+
+    if (qrVerified != true) {
+      return;
+    }
     try {
       // First check if there are any active WTR sessions
       final activeSessionsCheck = await _apiService.checkActiveWTR(_currentIdNumber!);
@@ -351,8 +352,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
             builder: (BuildContext context) {
               return AlertDialog(
                 title: const Text("早退"),
-                content: Text("あなたのシフトは${confirmResult["shiftOut"]}に終了します。今すぐログアウトしてもよろしいですか？"),
-                actions: [
+                content: Text("あなたのシフトは${confirmResult["shiftOut"]}に終了します。今すぐログアウトしてもよろしいですか？"),                actions: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(false),
                     child: const Text("キャンセル"),
@@ -442,6 +442,106 @@ class _LoginScreenState extends State<LoginScreenJP> {
     }
   }
 
+  Future<bool?> _showQrScanner() async {
+    _qrErrorMessage = null; // Reset error message
+
+    return await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              insetPadding: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.95,
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      "QRコードをスキャンしてログアウト",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: SizedBox(
+                        width: MediaQuery.of(context).size.width * 0.9,
+                        height: MediaQuery.of(context).size.width * 0.9,
+                        child: QRView(
+                          key: qrKey,
+                          onQRViewCreated: (controller) => _onQRViewCreated(controller, setState),
+                          overlay: QrScannerOverlayShape(
+                            borderColor: Colors.red,
+                            borderRadius: 10,
+                            borderLength: 30,
+                            borderWidth: 10,
+                            cutOutSize: MediaQuery.of(context).size.width * 0.7,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (_qrErrorMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Text(
+                          _qrErrorMessage!,
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 14,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(false);
+                        qrController?.dispose();
+                      },
+                      child: const Text("キャンセル"),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _onQRViewCreated(QRViewController controller, void Function(void Function()) setState) {
+    qrController = controller;
+    bool isVerified = false;
+
+    controller.scannedDataStream.listen((scanData) {
+      if (isVerified) return; // Prevent multiple verifications
+
+      final qrData = scanData.code;
+      if (qrData == null) return;
+
+      // Check if QR data matches the expected format
+      final regex = RegExp(r'^DateTime=\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$');
+      if (regex.hasMatch(qrData)) {
+        isVerified = true;
+        qrController?.pauseCamera();
+        Navigator.of(context).pop(true);
+        qrController?.dispose();
+      } else {
+        // Show error message below the camera
+        setState(() {
+          _qrErrorMessage = '無効なQRコードの形式です';
+        });
+      }
+    });
+  }
   Future<String> _getDeviceId() async {
     try {
       String? identifier = await UniqueIdentifier.serial;
@@ -454,6 +554,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
 
   @override
   void dispose() {
+    qrController?.dispose();
     _idController.dispose();
     _timer?.cancel();
     super.dispose();

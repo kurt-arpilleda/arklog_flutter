@@ -43,6 +43,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isCountryLoadingJp = false;
   String _currentDateTime = '';
   String? _latestTimeIn;
+  String? _qrErrorMessage;
   Timer? _timer;
   @override
   void initState() {
@@ -449,8 +450,6 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     }
   }
-
-  String? _qrErrorMessage;
 
   Future<bool?> _showQrScanner() async {
     _qrErrorMessage = null; // Reset error message
