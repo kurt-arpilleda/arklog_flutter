@@ -439,18 +439,18 @@ class _LoginScreenState extends State<LoginScreenJP> {
           const SnackBar(content: Text('ログアウトに成功しました')),
         );
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
+        // );
       } finally {
         setState(() {
           _isLoading = false;
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
-      );
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
+      // );
     }
   }
 

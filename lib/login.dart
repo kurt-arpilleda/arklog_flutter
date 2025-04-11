@@ -448,18 +448,18 @@ class _LoginScreenState extends State<LoginScreen> {
           const SnackBar(content: Text('Logged out successfully')),
         );
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
-        );
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
+        // );
       } finally {
         setState(() {
           _isLoading = false;
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
-      );
+      // ScaffoldMessenger.of(context).showSnackBar(
+      //   SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
+      // );
     }
   }
 
