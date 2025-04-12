@@ -20,7 +20,7 @@ class LoginScreen extends StatefulWidget {
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   final TextEditingController _idController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   final ApiService _apiService = ApiService();
@@ -49,11 +49,19 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     tz.initializeTimeZones();
     _initializeApp();
     _updateDateTime();
     _timer = Timer.periodic(Duration(seconds: 1), (Timer t) => _updateDateTime());
 
+  }
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // App has come back to the foreground
+      _initializeApp(); // Re-run your init logic
+    }
   }
   void _updateDateTime() {
     // Get Manila timezone
@@ -606,6 +614,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     qrController?.dispose();
     _idController.dispose();
     _timer?.cancel();
