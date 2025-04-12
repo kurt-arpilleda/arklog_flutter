@@ -7,7 +7,6 @@ class ApiService {
     "http://192.168.254.163/",
     "http://126.209.7.246/"
   ];
-
   static const Duration requestTimeout = Duration(seconds: 2);
   static const int maxRetries = 6;
   static const Duration initialRetryDelay = Duration(seconds: 1);
@@ -33,7 +32,6 @@ class ApiService {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
-
   Future<String?> getLastIdNumber(String deviceId) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
@@ -59,7 +57,6 @@ class ApiService {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
-
   Future<void> logout(String deviceId) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
@@ -118,7 +115,6 @@ class ApiService {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
-
   Future<bool> _checkDTRRecord(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
@@ -141,7 +137,6 @@ class ApiService {
     }
     throw Exception("Failed to check DTR record after $maxRetries attempts");
   }
-
   Future<Map<String, dynamic>> insertWTR(String idNumber, {required String deviceId}) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
@@ -231,7 +226,6 @@ class ApiService {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
-
   Future<String> insertIdNumber(String idNumber, {required String deviceId}) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
@@ -384,5 +378,46 @@ class ApiService {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+  
+  Future<Map<String, dynamic>> checkExclusiveLogin(String deviceId) async {
+    for (String apiUrl in apiUrls) {
+      try {
+        final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkExclusive.php");
+        final response = await http.post(
+          uri,
+          body: {'deviceId': deviceId},
+        ).timeout(requestTimeout);
 
+        if (response.statusCode == 200) {
+          return jsonDecode(response.body);
+        }
+      } catch (e) {
+        continue; // Try next URL if error occurs
+      }
+    }
+    throw Exception("Failed to check exclusive login");
+  }
+
+  Future<bool> autoLoginExclusiveUser(String idNumber, String deviceId) async {
+    for (String apiUrl in apiUrls) {
+      try {
+        final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_idLog.php");
+        final response = await http.post(
+          uri,
+          body: {
+            'idNumber': idNumber,
+            'deviceId': deviceId,
+          },
+        ).timeout(requestTimeout);
+
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          return data["success"] == true;
+        }
+      } catch (e) {
+        continue; // Try next URL if error occurs
+      }
+    }
+    return false;
+  }
 }

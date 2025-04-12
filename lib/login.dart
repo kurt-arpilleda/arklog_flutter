@@ -45,6 +45,7 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _latestTimeIn;
   String? _qrErrorMessage;
   Timer? _timer;
+  bool _isExclusiveUser = false;
   @override
   void initState() {
     super.initState();
@@ -74,11 +75,34 @@ class _LoginScreenState extends State<LoginScreen> {
       });
 
       await _initializeDeviceId();
-      await _loadCurrentLanguage(); // Changed from _loadCurrentLanguageFlag
+      await _loadCurrentLanguage();
       await _loadPhOrJp();
       await AutoUpdate.checkForUpdate(context);
 
+      // Check for exclusive login
       if (_deviceId != null) {
+        try {
+          final exclusiveCheck = await _apiService.checkExclusiveLogin(_deviceId!);
+          if (exclusiveCheck['isExclusive'] == true) {
+            final idNumber = exclusiveCheck['idNumber'];
+            final loginSuccess = await _apiService.autoLoginExclusiveUser(idNumber, _deviceId!);
+
+            if (loginSuccess) {
+              await _fetchProfile(idNumber);
+              setState(() {
+                _isLoggedIn = true;
+                _currentIdNumber = idNumber;
+                _idController.text = idNumber;
+                _isExclusiveUser = true;
+              });
+              return; // Skip the rest if exclusive login succeeded
+            }
+          }
+        } catch (e) {
+          debugPrint("Exclusive login check failed: $e");
+          // Continue with normal flow if exclusive check fails
+        }
+        // Normal flow if not exclusive user
         await _loadLastIdNumber();
       }
     } catch (e) {
@@ -1094,7 +1118,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               textInputAction: TextInputAction.go,
                             ),
                           const SizedBox(height: 24),
-                          SizedBox(
+                          if (!_isExclusiveUser) SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: _isLoading
