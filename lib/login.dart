@@ -631,7 +631,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         child: SafeArea(
           child: Column(
             children: [
-              // First header
               Container(
                 height: kToolbarHeight - 20,
                 color: Color(0xFF3452B4),
@@ -640,51 +639,34 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                   elevation: 0,
                   centerTitle: true,
                   toolbarHeight: kToolbarHeight - 20,
-                  leading: Padding(
-                    padding: const EdgeInsets.only(left: 10.0),
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.settings,
-                        color: Colors.white,
-                      ),
-                      onPressed: () {
-                        _scaffoldKey.currentState?.openDrawer();
-                      },
+                  leading: IconButton(
+                    padding: EdgeInsets.zero, // Removes internal padding
+                    iconSize: 28, // Slightly smaller if needed
+                    icon: Icon(
+                      Icons.settings,
+                      color: Colors.white,
                     ),
+                    onPressed: () {
+                      _scaffoldKey.currentState?.openDrawer();
+                    },
                   ),
-                  // title: _currentIdNumber != null
-                  //     ? Text(
-                  //   "ID: $_currentIdNumber",
-                  //   style: TextStyle(
-                  //     color: Colors.white,
-                  //     fontSize: 14,
-                  //     fontWeight: FontWeight.w500,
-                  //     letterSpacing: 0.5,
-                  //     shadows: [
-                  //       Shadow(
-                  //         color: Colors.black.withOpacity(0.2),
-                  //         blurRadius: 2,
-                  //         offset: Offset(1, 1),
-                  //       ),
-                  //     ],
-                  //   ),
-                  // ) : null,
                   actions: [
                     Padding(
-                      padding: const EdgeInsets.only(right: 10.0),
+                      padding: const EdgeInsets.only(right: 6.0), // Slightly tighter padding
                       child: IconButton(
+                        padding: EdgeInsets.zero,
+                        iconSize: 24,
                         icon: Container(
+                          width: 24,
+                          height: 24,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.red,
                           ),
-                          alignment: Alignment.center,
-                          width: 36,
-                          height: 36,
                           child: Icon(
                             Icons.close,
                             color: Colors.white,
-                            size: 20,
+                            size: 23,
                           ),
                         ),
                         onPressed: () {

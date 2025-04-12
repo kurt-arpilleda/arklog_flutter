@@ -20,7 +20,7 @@ class LoginScreenJP extends StatefulWidget {
   State<LoginScreenJP> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreenJP> {
+class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver {
   final TextEditingController _idController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   final ApiServiceJP _apiService = ApiServiceJP();
@@ -45,28 +45,35 @@ class _LoginScreenState extends State<LoginScreenJP> {
   String? _latestTimeIn;
   String? _qrErrorMessage;
   Timer? _timer;
+  bool _isExclusiveUser = false;
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     tz.initializeTimeZones();
     _initializeApp();
     _updateDateTime();
     _timer = Timer.periodic(Duration(seconds: 1), (Timer t) => _updateDateTime());
 
   }
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // App has come back to the foreground
+      _initializeApp(); // Re-run your init logic
+    }
+  }
   void _updateDateTime() {
     final tokyo = tz.getLocation('Asia/Tokyo');
     final now = tz.TZDateTime.now(tokyo);
-
-    // Change the date format to Japanese style
     final formattedDate = DateFormat('yyyy年MM月dd日 HH:mm:ss').format(now);
-
     if (mounted) {
       setState(() {
         _currentDateTime = formattedDate;
       });
     }
   }
+
   Future<void> _initializeApp() async {
     try {
       setState(() {
@@ -74,11 +81,34 @@ class _LoginScreenState extends State<LoginScreenJP> {
       });
 
       await _initializeDeviceId();
-      await _loadCurrentLanguage(); // Changed from _loadCurrentLanguageFlag
+      await _loadCurrentLanguage();
       await _loadPhOrJp();
       await AutoUpdate.checkForUpdate(context);
 
+      // Check for exclusive login
       if (_deviceId != null) {
+        try {
+          final exclusiveCheck = await _apiService.checkExclusiveLogin(_deviceId!);
+          if (exclusiveCheck['isExclusive'] == true) {
+            final idNumber = exclusiveCheck['idNumber'];
+            final loginSuccess = await _apiService.autoLoginExclusiveUser(idNumber, _deviceId!);
+
+            if (loginSuccess) {
+              await _fetchProfile(idNumber);
+              setState(() {
+                _isLoggedIn = true;
+                _currentIdNumber = idNumber;
+                _idController.text = idNumber;
+                _isExclusiveUser = true;
+              });
+              return; // Skip the rest if exclusive login succeeded
+            }
+          }
+        } catch (e) {
+          debugPrint("Exclusive login check failed: $e");
+          // Continue with normal flow if exclusive check fails
+        }
+        // Normal flow if not exclusive user
         await _loadLastIdNumber();
       }
     } catch (e) {
@@ -93,7 +123,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
   Future<void> _loadCurrentLanguage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _currentLanguage = prefs.getString('language') ?? 'ja'; // Default to 'en'
+      _currentLanguage = prefs.getString('language') ?? 'ja'; // Default to 'ja'
     });
   }
 
@@ -251,26 +281,31 @@ class _LoginScreenState extends State<LoginScreenJP> {
       setState(() {
         _isLoading = true;
       });
+
       try {
         // First check for active login before proceeding with insertIdNumber
         final activeLoginCheck = await _apiService.checkActiveLogin(_idController.text);
         if (activeLoginCheck["hasActiveLogin"] == true) {
+          String phoneName = activeLoginCheck["phoneName"] ?? "another device";
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('別のデバイスでアクティブなログインセッションがあります')),
+            SnackBar(content: Text('あなたは $phoneName でアクティブなログインセッションがあります')),
           );
           return; // Exit the function early
         }
-        // Get the actual idNumber (in case they logged in with randomId)
+
+        // Rest of your existing login code...
         final actualIdNumber = await _apiService.insertIdNumber(
           _idController.text,
           deviceId: _deviceId!,
         );
+
         // Only proceed with WTR insertion if we got past the DTR check
         // Pass the deviceId to insertWTR to store the phoneName
         final wtrResponse = await _apiService.insertWTR(
           actualIdNumber,
           deviceId: _deviceId!,
         );
+
         // Use the actual idNumber for fetching profile (do this regardless of active session)
         await _fetchProfile(actualIdNumber);
         setState(() {
@@ -278,6 +313,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
           _currentIdNumber = actualIdNumber;
           _idController.text = actualIdNumber;
         });
+
         // Show late login or relogin dialog if applicable
         if (wtrResponse['isLate'] == true || wtrResponse['isRelogin'] == true) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -286,6 +322,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
               builder: (BuildContext context) {
                 String title;
                 String message;
+
                 if (wtrResponse['isRelogin'] == true && wtrResponse['isLate'] == true) {
                   title = "再ログイン（遅刻）";
                   message = "再ログインしましたが、シフトに遅れています";
@@ -298,6 +335,8 @@ class _LoginScreenState extends State<LoginScreenJP> {
                   title = "遅刻ログイン";
                   message = wtrResponse['lateMessage'] ?? "シフトに遅れています";
                 }
+
+
                 return AlertDialog(
                   title: Text(title),
                   content: Text(message),
@@ -312,8 +351,13 @@ class _LoginScreenState extends State<LoginScreenJP> {
             );
           });
         }
+        String successMessage = 'ID: $actualIdNumber で正常にログインしました';
+        if (wtrResponse['updated'] == true) {
+          successMessage = 'デバイス情報で既存のWTRレコードが正常に更新されました';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('ID: $actualIdNumber で正常にログインしました')),
+          SnackBar(content: Text(successMessage)),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -329,7 +373,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
 
   Future<void> _logout() async {
 
-    final exemptedIds = ['1238', 'J002'];
+    final exemptedIds = ['1238', '1243', '0939', '1163', '1239', '1288', '1200'];
     final isExempted = exemptedIds.contains(_currentIdNumber);
 
     // Only show QR scanner for non exempted users
@@ -358,7 +402,8 @@ class _LoginScreenState extends State<LoginScreenJP> {
             builder: (BuildContext context) {
               return AlertDialog(
                 title: const Text("早退"),
-                content: Text("あなたのシフトは${confirmResult["shiftOut"]}に終了します。今すぐログアウトしてもよろしいですか？"),                actions: [
+                content: Text("あなたのシフトは${confirmResult["shiftOut"]}に終了します。今すぐログアウトしてもよろしいですか？"),
+                actions: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(false),
                     child: const Text("キャンセル"),
@@ -554,6 +599,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
       }
     });
   }
+
   Future<String> _getDeviceId() async {
     try {
       String? identifier = await UniqueIdentifier.serial;
@@ -566,6 +612,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     qrController?.dispose();
     _idController.dispose();
     _timer?.cancel();
@@ -582,7 +629,6 @@ class _LoginScreenState extends State<LoginScreenJP> {
         child: SafeArea(
           child: Column(
             children: [
-              // First header
               Container(
                 height: kToolbarHeight - 20,
                 color: Color(0xFF3452B4),
@@ -591,51 +637,34 @@ class _LoginScreenState extends State<LoginScreenJP> {
                   elevation: 0,
                   centerTitle: true,
                   toolbarHeight: kToolbarHeight - 20,
-                  leading: Padding(
-                    padding: const EdgeInsets.only(left: 10.0),
-                    child: IconButton(
-                      icon: Icon(
-                        Icons.settings,
-                        color: Colors.white,
-                      ),
-                      onPressed: () {
-                        _scaffoldKey.currentState?.openDrawer();
-                      },
+                  leading: IconButton(
+                    padding: EdgeInsets.zero, // Removes internal padding
+                    iconSize: 28, // Slightly smaller if needed
+                    icon: Icon(
+                      Icons.settings,
+                      color: Colors.white,
                     ),
+                    onPressed: () {
+                      _scaffoldKey.currentState?.openDrawer();
+                    },
                   ),
-                  // title: _currentIdNumber != null
-                  //     ? Text(
-                  //   "ID: $_currentIdNumber",
-                  //   style: TextStyle(
-                  //     color: Colors.white,
-                  //     fontSize: 14,
-                  //     fontWeight: FontWeight.w500,
-                  //     letterSpacing: 0.5,
-                  //     shadows: [
-                  //       Shadow(
-                  //         color: Colors.black.withOpacity(0.2),
-                  //         blurRadius: 2,
-                  //         offset: Offset(1, 1),
-                  //       ),
-                  //     ],
-                  //   ),
-                  // ) : null,
                   actions: [
                     Padding(
-                      padding: const EdgeInsets.only(right: 10.0),
+                      padding: const EdgeInsets.only(right: 6.0), // Slightly tighter padding
                       child: IconButton(
+                        padding: EdgeInsets.zero,
+                        iconSize: 24,
                         icon: Container(
+                          width: 24,
+                          height: 24,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.red,
                           ),
-                          alignment: Alignment.center,
-                          width: 36,
-                          height: 36,
                           child: Icon(
                             Icons.close,
                             color: Colors.white,
-                            size: 20,
+                            size: 23,
                           ),
                         ),
                         onPressed: () {
@@ -665,7 +694,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Image.asset(
-                                'assets/images/japan.png',
+                                'assets/images/philippines.png',
                                 width: 36,
                                 height: 36,
                               ),
@@ -943,7 +972,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                           _isLoggedIn ? 'ようこそ ${_firstName ?? ""}' : 'ID番号を入力してください',
                           style: TextStyle(
                             color: Colors.white,
-                            fontSize: 23,
+                            fontSize: 24,
                             overflow: TextOverflow.ellipsis,
                             fontWeight: FontWeight.bold,
                           ),
@@ -1078,7 +1107,7 @@ class _LoginScreenState extends State<LoginScreenJP> {
                               textInputAction: TextInputAction.go,
                             ),
                           const SizedBox(height: 24),
-                          SizedBox(
+                          if (!_isExclusiveUser) SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: _isLoading
