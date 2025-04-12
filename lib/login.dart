@@ -256,13 +256,14 @@ class _LoginScreenState extends State<LoginScreen> {
         // First check for active login before proceeding with insertIdNumber
         final activeLoginCheck = await _apiService.checkActiveLogin(_idController.text);
         if (activeLoginCheck["hasActiveLogin"] == true) {
+          String phoneName = activeLoginCheck["phoneName"] ?? "another device";
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('You have an active login session on another device')),
+            SnackBar(content: Text('You have an active login session on $phoneName')),
           );
           return; // Exit the function early
         }
 
-        // Get the actual idNumber (in case they logged in with randomId)
+        // Rest of your existing login code...
         final actualIdNumber = await _apiService.insertIdNumber(
           _idController.text,
           deviceId: _deviceId!,
@@ -320,8 +321,13 @@ class _LoginScreenState extends State<LoginScreen> {
           });
         }
 
+        String successMessage = 'Successfully logged in with ID: $actualIdNumber';
+        if (wtrResponse['updated'] == true) {
+          successMessage = 'Successfully updated existing WTR record with device info';
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Successfully logged in with ID: $actualIdNumber')),
+          SnackBar(content: Text(successMessage)),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -146,12 +146,50 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_insertWTR.php");
-          final response = await http.post(
+          // Check if there's an existing active WTR record first
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkActiveWTR.php");
+          final checkResponse = await http.post(
             uri,
             body: {
               'idNumber': idNumber,
-              'deviceId': deviceId, // Pass the deviceId to the API
+            },
+          ).timeout(requestTimeout);
+
+          if (checkResponse.statusCode == 200) {
+            final checkData = jsonDecode(checkResponse.body);
+
+            if (checkData["success"] == true && checkData["hasActiveSessions"] == true) {
+              // Update the existing WTR record with phoneName and dateInDetail
+              final updateUri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_existingInsert.php");
+              final updateResponse = await http.post(
+                updateUri,
+                body: {
+                  'idNumber': idNumber,
+                  'deviceId': deviceId,
+                },
+              ).timeout(requestTimeout);
+
+              if (updateResponse.statusCode == 200) {
+                final updateData = jsonDecode(updateResponse.body);
+                if (updateData["success"] == true) {
+                  return {
+                    "success": true,
+                    "message": "Existing WTR login found and updated",
+                    "hasActiveLogin": true,
+                    "updated": true
+                  };
+                }
+              }
+            }
+          }
+
+          // If no active sessions or update failed, proceed with normal insertion
+          final insertUri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_insertWTR.php");
+          final response = await http.post(
+            insertUri,
+            body: {
+              'idNumber': idNumber,
+              'deviceId': deviceId,
             },
           ).timeout(requestTimeout);
 
