@@ -8,11 +8,38 @@ class PhOrJpScreen extends StatefulWidget {
   _PhOrJpScreenState createState() => _PhOrJpScreenState();
 }
 
-class _PhOrJpScreenState extends State<PhOrJpScreen> {
+class _PhOrJpScreenState extends State<PhOrJpScreen> with WidgetsBindingObserver {
   bool _isLoadingPh = false;
   bool _isLoadingJp = false;
   bool _isPhPressed = false;
   bool _isJpPressed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Reset any loading states when app resumes
+      if (_isLoadingPh || _isLoadingJp) {
+        setState(() {
+          _isLoadingPh = false;
+          _isLoadingJp = false;
+          _isPhPressed = false;
+          _isJpPressed = false;
+        });
+      }
+    }
+  }
 
   Future<void> _setPreference(String value, BuildContext context) async {
     if ((value == 'ph' && _isLoadingPh) || (value == 'jp' && _isLoadingJp)) {
@@ -29,26 +56,37 @@ class _PhOrJpScreenState extends State<PhOrJpScreen> {
       }
     });
 
-    await Future.delayed(const Duration(milliseconds: 100));
+    try {
+      await Future.delayed(const Duration(milliseconds: 100));
 
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('phorjp', value);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('phorjp', value);
 
-    // Navigate directly based on selection without API check
-    Navigator.pushReplacementNamed(
-      context,
-      value == 'ph' ? '/login' : '/loginJP',
-    );
-
-    setState(() {
-      if (value == 'ph') {
-        _isLoadingPh = false;
-        _isPhPressed = false;
-      } else {
-        _isLoadingJp = false;
-        _isJpPressed = false;
+      if (mounted) {
+        Navigator.pushReplacementNamed(
+          context,
+          value == 'ph' ? '/login' : '/loginJP',
+        );
       }
-    });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: ${e.toString()}')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          if (value == 'ph') {
+            _isLoadingPh = false;
+            _isPhPressed = false;
+          } else {
+            _isLoadingJp = false;
+            _isJpPressed = false;
+          }
+        });
+      }
+    }
   }
 
   @override
@@ -135,6 +173,11 @@ class _PhOrJpScreenState extends State<PhOrJpScreen> {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Select your country',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ),
