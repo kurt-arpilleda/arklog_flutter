@@ -380,44 +380,56 @@ class ApiServiceJP {
   }
 
   Future<Map<String, dynamic>> checkExclusiveLogin(String deviceId) async {
-    for (String apiUrl in apiUrls) {
-      try {
-        final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkExclusive.php");
-        final response = await http.post(
-          uri,
-          body: {'deviceId': deviceId},
-        ).timeout(requestTimeout);
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      for (String apiUrl in apiUrls) {
+        try {
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkExclusive.php");
+          final response = await http.post(
+            uri,
+            body: {'deviceId': deviceId},
+          ).timeout(requestTimeout);
 
-        if (response.statusCode == 200) {
-          return jsonDecode(response.body);
+          if (response.statusCode == 200) {
+            return jsonDecode(response.body);
+          }
+        }catch (e) {
+          // Continue with retry logic
         }
-      } catch (e) {
-        continue; // Try next URL if error occurs
+      }
+      if (attempt < maxRetries) {
+        final delay = initialRetryDelay * (1 << (attempt - 1));
+        await Future.delayed(delay);
       }
     }
-    throw Exception("Failed to check exclusive login");
+    throw Exception("Failed to check exclusive login after $maxRetries attempts");
   }
 
   Future<bool> autoLoginExclusiveUser(String idNumber, String deviceId) async {
-    for (String apiUrl in apiUrls) {
-      try {
-        final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_idLog.php");
-        final response = await http.post(
-          uri,
-          body: {
-            'idNumber': idNumber,
-            'deviceId': deviceId,
-          },
-        ).timeout(requestTimeout);
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      for (String apiUrl in apiUrls) {
+        try {
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_idLog.php");
+          final response = await http.post(
+            uri,
+            body: {
+              'idNumber': idNumber,
+              'deviceId': deviceId,
+            },
+          ).timeout(requestTimeout);
 
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          return data["success"] == true;
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            return data["success"] == true;
+          }
+        } catch (e) {
+          // Continue with retry logic
         }
-      } catch (e) {
-        continue; // Try next URL if error occurs
+      }
+      if (attempt < maxRetries) {
+        final delay = initialRetryDelay * (1 << (attempt - 1));
+        await Future.delayed(delay);
       }
     }
-    return false;
+    throw Exception("Failed to auto-login exclusive user after $maxRetries attempts");
   }
 }
