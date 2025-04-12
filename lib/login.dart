@@ -641,7 +641,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                   toolbarHeight: kToolbarHeight - 20,
                   leading: IconButton(
                     padding: EdgeInsets.zero, // Removes internal padding
-                    iconSize: 28, // Slightly smaller if needed
+                    iconSize: 30, // Slightly smaller if needed
                     icon: Icon(
                       Icons.settings,
                       color: Colors.white,
@@ -655,10 +655,10 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                       padding: const EdgeInsets.only(right: 6.0), // Slightly tighter padding
                       child: IconButton(
                         padding: EdgeInsets.zero,
-                        iconSize: 24,
+                        iconSize: 25,
                         icon: Container(
-                          width: 24,
-                          height: 24,
+                          width: 25,
+                          height: 25,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.red,
@@ -666,7 +666,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                           child: Icon(
                             Icons.close,
                             color: Colors.white,
-                            size: 23,
+                            size: 25,
                           ),
                         ),
                         onPressed: () {
