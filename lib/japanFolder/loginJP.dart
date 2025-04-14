@@ -1002,7 +1002,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                     child: Column(
                       children: [
                         Text(
-                          _isLoggedIn ? 'ようこそ ${_firstName ?? ""}' : 'ID番号を入力してください',
+                          _isLoggedIn ? 'ようこそ ${_firstName ?? ""}さん' : 'ID番号を入力してください',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 24,
@@ -1010,15 +1010,15 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        SizedBox(height: 8),
-                        Text(
-                          _currentDateTime,
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
+                        // SizedBox(height: 8),
+                        // Text(
+                        //   _currentDateTime,
+                        //   style: TextStyle(
+                        //     color: Colors.white,
+                        //     fontSize: 16,
+                        //     fontWeight: FontWeight.w500,
+                        //   ),
+                        // ),
                       ],
                     ),
                   ),
