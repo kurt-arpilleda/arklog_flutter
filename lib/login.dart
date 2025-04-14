@@ -87,12 +87,32 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       await _loadPhOrJp();
       await AutoUpdate.checkForUpdate(context);
 
+      // Reset the exclusive user flag to false by default
+      bool wasExclusive = _isExclusiveUser;
+      setState(() {
+        _isExclusiveUser = false;
+      });
+
       // Check for exclusive login
       if (_deviceId != null) {
         try {
           final exclusiveCheck = await _apiService.checkExclusiveLogin(_deviceId!);
           if (exclusiveCheck['isExclusive'] == true) {
             final idNumber = exclusiveCheck['idNumber'];
+
+            // Check if ID number changed for an exclusive device
+            if (_isLoggedIn && _currentIdNumber != idNumber) {
+              // ID number changed, handle the change
+              setState(() {
+                _isLoggedIn = false;
+                _currentIdNumber = null;
+                _firstName = null;
+                _surName = null;
+                _profilePictureUrl = null;
+                _idController.clear();
+              });
+            }
+
             final loginSuccess = await _apiService.autoLoginExclusiveUser(idNumber, _deviceId!);
 
             if (loginSuccess) {
@@ -105,6 +125,16 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
               });
               return; // Skip the rest if exclusive login succeeded
             }
+          } else if (wasExclusive) {
+            // Device was previously exclusive but is no longer
+            setState(() {
+              _isLoggedIn = false;
+              _currentIdNumber = null;
+              _firstName = null;
+              _surName = null;
+              _profilePictureUrl = null;
+              _idController.clear();
+            });
           }
         } catch (e) {
           debugPrint("Exclusive login check failed: $e");
