@@ -64,11 +64,11 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     }
   }
   void _updateDateTime() {
-    // Get Manila timezone
-    final manila = tz.getLocation('Asia/Manila');
-    final now = tz.TZDateTime.now(manila);
+    final tokyo = tz.getLocation('Asia/Tokyo');
+    final now = tz.TZDateTime.now(tokyo);
 
-    final formattedDate = DateFormat('MMMM dd, yyyy HH:mm:ss').format(now);
+    final formattedDate = DateFormat('yyyy年MM月dd日 HH:mm:ss').format(now);
+
 
     if (mounted) {
       setState(() {
@@ -76,6 +76,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       });
     }
   }
+
   Future<void> _initializeApp() async {
     try {
       setState(() {
@@ -320,7 +321,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         if (activeLoginCheck["hasActiveLogin"] == true) {
           String phoneName = activeLoginCheck["phoneName"] ?? "another device";
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('You have an active login session on $phoneName')),
+            SnackBar(content: Text('あなたは $phoneName でアクティブなログインセッションがあります')),
           );
           return; // Exit the function early
         }
@@ -356,16 +357,16 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                 String message;
 
                 if (wtrResponse['isRelogin'] == true && wtrResponse['isLate'] == true) {
-                  title = "Relogin (Late)";
-                  message = "You have relogged in and you are late for your shift";
+                  title = "再ログイン（遅刻）";
+                  message = "再ログインしましたが、シフトに遅れています";
                 }
                 else if (wtrResponse['isRelogin'] == true) {
-                  title = "Relogin";
-                  message = "You have relogged in";
+                  title = "再ログイン";
+                  message = "再ログインしました";
                 }
                 else {
-                  title = "Late Login";
-                  message = wtrResponse['lateMessage'] ?? "You are late for your shift";
+                  title = "遅れてログイン";
+                  message = wtrResponse['lateMessage'] ?? "シフトに遅れています";
                 }
 
                 return AlertDialog(
@@ -374,7 +375,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      child: Text("OK"),
+                      child: Text("はい"),
                     ),
                   ],
                 );
@@ -383,9 +384,9 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
           });
         }
 
-        String successMessage = 'Successfully logged in with ID: $actualIdNumber';
+        String successMessage = 'ID: $actualIdNumber で正常にログインしました';
         if (wtrResponse['updated'] == true) {
-          successMessage = 'Successfully updated existing WTR record with device info';
+          successMessage = '既存のWTR記録をデバイス情報で正常に更新しました';
         }
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -433,16 +434,16 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
             context: context,
             builder: (BuildContext context) {
               return AlertDialog(
-                title: const Text("Early Logout"),
-                content: Text("Your shift ends at ${confirmResult["shiftOut"]}. Are you sure you want to logout now?"),
+                title: const Text("早めのログアウト"),
+                content: Text("あなたのシフトは ${confirmResult["shiftOut"]} に終了します。今すぐログアウトしてもよろしいですか？"),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text("Cancel"),
+                    child: const Text("キャンセル"),
                   ),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text("Logout Anyway"),
+                    child: const Text("強制的にログアウト"),
                   ),
                 ],
               );
@@ -456,16 +457,16 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
               context: context,
               builder: (BuildContext context) {
                 return AlertDialog(
-                  title: const Text("Confirm Logout"),
-                  content: const Text("Are you sure you want to logout?"),
+                  title: const Text("ログアウトの確認"),
+                  content: const Text("本当にログアウトしてもよろしいですか？"),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text("Cancel"),
+                      child: const Text("キャンセル"),
                     ),
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text("Logout"),
+                      child: const Text("ログアウト"),
                     ),
                   ],
                 );
@@ -495,7 +496,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
           if (logoutResult["isUndertime"] == true) {
             // Show undertime message
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('You have logged out before your shift ended')),
+              const SnackBar(content: Text('シフト終了前にログアウトしました')),
             );
           }
         }
@@ -513,7 +514,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Logged out successfully')),
+          const SnackBar(content: Text('正常にログアウトしました')),
         );
       } catch (e) {
         // ScaffoldMessenger.of(context).showSnackBar(
@@ -551,7 +552,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      "Scan QR Code to Logout",
+                      "ログアウト用QRコードをスキャン",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -594,7 +595,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                         Navigator.of(context).pop(false);
                         qrController?.dispose();
                       },
-                      child: const Text("Cancel"),
+                      child: const Text("キャンセル"),
                     ),
                   ],
                 ),
@@ -626,7 +627,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       } else {
         // Show error message below the camera
         setState(() {
-          _qrErrorMessage = 'Invalid QR code format';
+          _qrErrorMessage = '無効なQRコードの形式です';
         });
       }
     });
@@ -844,7 +845,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                           child: Row(
                             children: [
                               Text(
-                                "Keyboard",
+                                "キーボード",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -870,7 +871,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                   child: Row(
                     children: [
                       Text(
-                        "Country",
+                        "国",
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -1001,7 +1002,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                     child: Column(
                       children: [
                         Text(
-                          _isLoggedIn ? 'Welcome ${_firstName ?? ""}' : 'Enter your ID number',
+                          _isLoggedIn ? 'ようこそ ${_firstName ?? ""}' : 'ID番号を入力してください',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 24,
@@ -1089,7 +1090,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                                 if (_latestTimeIn != null) ...[
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Last Login: $_latestTimeIn',
+                                    '最終ログイン: $_latestTimeIn',
                                     style: TextStyle(
                                       color: Colors.grey[600],
                                       fontSize: 13,
@@ -1106,7 +1107,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                             TextFormField(
                               controller: _idController,
                               decoration: InputDecoration(
-                                labelText: 'ID Number',
+                                labelText: 'ID番号',
                                 prefixIcon: const Icon(Icons.badge),
                                 suffixIcon: _idController.text.isNotEmpty
                                     ? IconButton(
@@ -1123,7 +1124,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Please enter your ID number';
+                                  return 'ID番号を入力してください';
                                 }
                                 return null;
                               },
@@ -1158,7 +1159,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                               child: _isLoading
                                   ? const CircularProgressIndicator(color: Colors.white)
                                   : Text(
-                                _isLoggedIn ? 'LOGOUT' : 'LOGIN',
+                                _isLoggedIn ? 'ログアウト' : 'ログイン',
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
