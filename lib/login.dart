@@ -308,6 +308,110 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<Map<String, String>?> _showPhoneConditionDialog() async {
+    String? phoneCondition;
+    final TextEditingController _explanationController = TextEditingController();
+    final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+    return showDialog<Map<String, String>?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Phone Condition'),
+              content: Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  child: ListBody(
+                    children: <Widget>[
+                      Text(
+                        'Remember to be honest about the condition – every user is logged in the system.',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      RadioListTile<String>(
+                        title: Text('Good'),
+                        value: 'Good',
+                        groupValue: phoneCondition,
+                        onChanged: (String? value) {
+                          setState(() {
+                            phoneCondition = value;
+                          });
+                        },
+                      ),
+                      RadioListTile<String>(
+                        title: Text('Not Good'),
+                        value: 'Bad',
+                        groupValue: phoneCondition,
+                        onChanged: (String? value) {
+                          setState(() {
+                            phoneCondition = value;
+                          });
+                        },
+                      ),
+                      if (phoneCondition == 'Bad')
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: TextFormField(
+                            controller: _explanationController,
+                            decoration: InputDecoration(
+                              labelText: 'Please explain the issue',
+                              border: OutlineInputBorder(),
+                            ),
+                            maxLines: 3,
+                            validator: (value) {
+                              if (phoneCondition == 'Bad' && (value == null || value.trim().isEmpty)) {
+                                return 'Please provide explanation';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(null); // Cancelled
+                  },
+                  child: Text('Cancel'),
+                ),
+                TextButton(
+                  child: Text('OK'),
+                  onPressed: () {
+                    if (phoneCondition == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Please select a phone condition')),
+                      );
+                      return;
+                    }
+
+                    if (phoneCondition == 'Bad' && !_formKey.currentState!.validate()) {
+                      return;
+                    }
+
+                    String finalCondition = phoneCondition!;
+                    if (phoneCondition == 'Bad') {
+                      finalCondition = 'Bad: ${_explanationController.text.trim()}';
+                    }
+
+                    Navigator.of(context).pop({'phoneCondition': finalCondition});
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
@@ -315,30 +419,45 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       });
 
       try {
-        // First check for active login before proceeding with insertIdNumber
+        // First check for active login before proceeding
         final activeLoginCheck = await _apiService.checkActiveLogin(_idController.text);
         if (activeLoginCheck["hasActiveLogin"] == true) {
           String phoneName = activeLoginCheck["phoneName"] ?? "another device";
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('You have an active login session on $phoneName')),
           );
-          return; // Exit the function early
+          setState(() {
+            _isLoading = false;
+          });
+          return;
         }
 
-        // Rest of your existing login code...
+        // Show phone condition dialog before anything else
+        final phoneConditionResult = await _showPhoneConditionDialog();
+        if (phoneConditionResult == null) {
+          // User cancelled the dialog
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+
+        String phoneCondition = phoneConditionResult['phoneCondition'] ?? 'Good';
+
+        // Proceed with insertIdNumber only after phone condition is provided
         final actualIdNumber = await _apiService.insertIdNumber(
           _idController.text,
           deviceId: _deviceId!,
         );
 
-        // Only proceed with WTR insertion if we got past the DTR check
-        // Pass the deviceId to insertWTR to store the phoneName
+        // Proceed with WTR using phone condition
         final wtrResponse = await _apiService.insertWTR(
           actualIdNumber,
           deviceId: _deviceId!,
+          phoneCondition: phoneCondition,
         );
 
-        // Use the actual idNumber for fetching profile (do this regardless of active session)
+        // Fetch profile using actual ID
         await _fetchProfile(actualIdNumber);
         setState(() {
           _isLoggedIn = true;
@@ -346,7 +465,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           _idController.text = actualIdNumber;
         });
 
-        // Show late login or relogin dialog if applicable
+        // Show late or relogin dialog if applicable
         if (wtrResponse['isLate'] == true || wtrResponse['isRelogin'] == true) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             showDialog(
@@ -358,12 +477,10 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                 if (wtrResponse['isRelogin'] == true && wtrResponse['isLate'] == true) {
                   title = "Relogin (Late)";
                   message = "You have relogged in and you are late for your shift";
-                }
-                else if (wtrResponse['isRelogin'] == true) {
+                } else if (wtrResponse['isRelogin'] == true) {
                   title = "Relogin";
                   message = "You have relogged in";
-                }
-                else {
+                } else {
                   title = "Late Login";
                   message = wtrResponse['lateMessage'] ?? "You are late for your shift";
                 }

@@ -137,7 +137,8 @@ class ApiService {
     }
     throw Exception("Failed to check DTR record after $maxRetries attempts");
   }
-  Future<Map<String, dynamic>> insertWTR(String idNumber, {required String deviceId}) async {
+// Update insertWTR method to include phoneCondition parameter
+  Future<Map<String, dynamic>> insertWTR(String idNumber, {required String deviceId, String phoneCondition = 'Good'}) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
@@ -161,6 +162,7 @@ class ApiService {
                 body: {
                   'idNumber': idNumber,
                   'deviceId': deviceId,
+                  'phoneCondition': phoneCondition,
                 },
               ).timeout(requestTimeout);
 
@@ -185,6 +187,7 @@ class ApiService {
             body: {
               'idNumber': idNumber,
               'deviceId': deviceId,
+              'phoneCondition': phoneCondition,
             },
           ).timeout(requestTimeout);
 

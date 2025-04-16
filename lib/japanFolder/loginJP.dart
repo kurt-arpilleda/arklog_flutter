@@ -309,6 +309,112 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     }
   }
 
+
+  Future<Map<String, String>?> _showPhoneConditionDialog() async {
+    String? phoneCondition;
+    final TextEditingController _explanationController = TextEditingController();
+    final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+    return showDialog<Map<String, String>?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('携帯の状態'),
+              content: Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  child: ListBody(
+                    children: <Widget>[
+                      Text(
+                        '携帯の状態について正直に記入してください — すべてのユーザーはシステムに記録されています。',
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      RadioListTile<String>(
+                        title: Text('良好'),
+                        value: 'Good',
+                        groupValue: phoneCondition,
+                        onChanged: (String? value) {
+                          setState(() {
+                            phoneCondition = value;
+                          });
+                        },
+                      ),
+                      RadioListTile<String>(
+                        title: Text('良くない'),
+                        value: 'Bad',
+                        groupValue: phoneCondition,
+                        onChanged: (String? value) {
+                          setState(() {
+                            phoneCondition = value;
+                          });
+                        },
+                      ),
+                      if (phoneCondition == 'Bad')
+                        Padding(
+                          padding: const EdgeInsets.only(top: 8.0),
+                          child: TextFormField(
+                            controller: _explanationController,
+                            decoration: InputDecoration(
+                              labelText: '問題の内容を説明してください',
+                              border: OutlineInputBorder(),
+                            ),
+                            maxLines: 3,
+                            validator: (value) {
+                              if (phoneCondition == 'Bad' && (value == null || value.trim().isEmpty)) {
+                                return '説明を入力してください';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(null); // キャンセル
+                  },
+                  child: Text('キャンセル'),
+                ),
+                TextButton(
+                  child: Text('OK'),
+                  onPressed: () {
+                    if (phoneCondition == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('携帯の状態を選択してください')),
+                      );
+                      return;
+                    }
+
+                    if (phoneCondition == 'Bad' && !_formKey.currentState!.validate()) {
+                      return;
+                    }
+
+                    String finalCondition = phoneCondition!;
+                    if (phoneCondition == 'Bad') {
+                      finalCondition = '悪い: ${_explanationController.text.trim()}';
+                    }
+
+                    Navigator.of(context).pop({'phoneCondition': finalCondition});
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
@@ -316,30 +422,45 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       });
 
       try {
-        // First check for active login before proceeding with insertIdNumber
+        // First check for active login before proceeding
         final activeLoginCheck = await _apiService.checkActiveLogin(_idController.text);
         if (activeLoginCheck["hasActiveLogin"] == true) {
           String phoneName = activeLoginCheck["phoneName"] ?? "another device";
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('あなたは $phoneName でアクティブなログインセッションがあります')),
           );
-          return; // Exit the function early
+          setState(() {
+            _isLoading = false;
+          });
+          return;
         }
 
-        // Rest of your existing login code...
+        // Show phone condition dialog before anything else
+        final phoneConditionResult = await _showPhoneConditionDialog();
+        if (phoneConditionResult == null) {
+          // User cancelled the dialog
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+
+        String phoneCondition = phoneConditionResult['phoneCondition'] ?? 'Good';
+
+        // Proceed with insertIdNumber only after phone condition is provided
         final actualIdNumber = await _apiService.insertIdNumber(
           _idController.text,
           deviceId: _deviceId!,
         );
 
-        // Only proceed with WTR insertion if we got past the DTR check
-        // Pass the deviceId to insertWTR to store the phoneName
+        // Proceed with WTR using phone condition
         final wtrResponse = await _apiService.insertWTR(
           actualIdNumber,
           deviceId: _deviceId!,
+          phoneCondition: phoneCondition,
         );
 
-        // Use the actual idNumber for fetching profile (do this regardless of active session)
+        // Fetch profile using actual ID
         await _fetchProfile(actualIdNumber);
         setState(() {
           _isLoggedIn = true;
@@ -347,7 +468,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
           _idController.text = actualIdNumber;
         });
 
-        // Show late login or relogin dialog if applicable
+        // Show late or relogin dialog if applicable
         if (wtrResponse['isLate'] == true || wtrResponse['isRelogin'] == true) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             showDialog(
@@ -359,12 +480,10 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                 if (wtrResponse['isRelogin'] == true && wtrResponse['isLate'] == true) {
                   title = "再ログイン（遅刻）";
                   message = "再ログインしましたが、シフトに遅れています";
-                }
-                else if (wtrResponse['isRelogin'] == true) {
+                } else if (wtrResponse['isRelogin'] == true) {
                   title = "再ログイン";
                   message = "再ログインしました";
-                }
-                else {
+                } else {
                   title = "遅れてログイン";
                   message = wtrResponse['lateMessage'] ?? "シフトに遅れています";
                 }
@@ -388,6 +507,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         if (wtrResponse['updated'] == true) {
           successMessage = '既存のWTR記録をデバイス情報で正常に更新しました';
         }
+
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(successMessage)),
