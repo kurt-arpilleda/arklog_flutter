@@ -308,7 +308,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     }
   }
 
-  Future<Map<String, String>?> _showPhoneConditionDialog() async {
+  Future<Map<String, String>?> _showPhoneConditionDialogIn() async {
     String? phoneCondition;
     final TextEditingController _explanationController = TextEditingController();
     final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
@@ -320,57 +320,86 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: Text('Phone Condition'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              titlePadding: EdgeInsets.zero,
+              contentPadding: EdgeInsets.all(20),
+              actionsPadding: EdgeInsets.only(right: 16, bottom: 12),
+              title: Column(
+                children: [
+                  SizedBox(height: 16),
+                  Image.asset(
+                    'assets/images/phonecheck.png',
+                    height: 60,
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    'Phone Condition Check',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
               content: Form(
                 key: _formKey,
                 child: SingleChildScrollView(
-                  child: ListBody(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        'Remember to be honest about the condition – every user is logged in the system.',
+                        'Are you sure the phone has no issues or damage before using it? Please be honest — every entry is recorded in the system, and you don’t want to be held responsible for any existing problems.',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.red,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      RadioListTile<String>(
-                        title: Text('Good'),
-                        value: 'Good',
-                        groupValue: phoneCondition,
-                        onChanged: (String? value) {
-                          setState(() {
-                            phoneCondition = value;
-                          });
-                        },
-                      ),
-                      RadioListTile<String>(
-                        title: Text('Not Good'),
-                        value: 'Bad',
-                        groupValue: phoneCondition,
-                        onChanged: (String? value) {
-                          setState(() {
-                            phoneCondition = value;
-                          });
-                        },
-                      ),
-                      if (phoneCondition == 'Bad')
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: TextFormField(
-                            controller: _explanationController,
-                            decoration: InputDecoration(
-                              labelText: 'Please explain the issue',
-                              border: OutlineInputBorder(),
-                            ),
-                            maxLines: 3,
-                            validator: (value) {
-                              if (phoneCondition == 'Bad' && (value == null || value.trim().isEmpty)) {
-                                return 'Please provide explanation';
-                              }
-                              return null;
+                      SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          ChoiceChip(
+                            label: Text('Yes'),
+                            selected: phoneCondition == 'Good',
+                            onSelected: (_) {
+                              setState(() {
+                                phoneCondition = 'Good';
+                              });
                             },
                           ),
+                          ChoiceChip(
+                            label: Text('No'),
+                            selected: phoneCondition == 'Not Good',
+                            onSelected: (_) {
+                              setState(() {
+                                phoneCondition = 'Not Good';
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      if (phoneCondition == 'Not Good') ...[
+                        SizedBox(height: 20),
+                        TextFormField(
+                          controller: _explanationController,
+                          decoration: InputDecoration(
+                            labelText: 'Please explain the issue',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          maxLines: 3,
+                          validator: (value) {
+                            if (phoneCondition == 'Not Good' &&
+                                (value == null || value.trim().isEmpty)) {
+                              return 'Please provide an explanation';
+                            }
+                            return null;
+                          },
                         ),
+                      ],
                     ],
                   ),
                 ),
@@ -383,7 +412,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                   child: Text('Cancel'),
                 ),
                 TextButton(
-                  child: Text('OK'),
                   onPressed: () {
                     if (phoneCondition == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -392,17 +420,18 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                       return;
                     }
 
-                    if (phoneCondition == 'Bad' && !_formKey.currentState!.validate()) {
+                    if (phoneCondition == 'Not Good' && !_formKey.currentState!.validate()) {
                       return;
                     }
 
                     String finalCondition = phoneCondition!;
-                    if (phoneCondition == 'Bad') {
-                      finalCondition = 'Bad: ${_explanationController.text.trim()}';
+                    if (phoneCondition == 'Not Good') {
+                      finalCondition = 'Not Good: ${_explanationController.text.trim()}';
                     }
 
                     Navigator.of(context).pop({'phoneCondition': finalCondition});
                   },
+                  child: Text('Send'),
                 ),
               ],
             );
@@ -412,6 +441,137 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     );
   }
 
+  Future<Map<String, String>?> _showPhoneConditionDialogOut() async {
+    String? phoneCondition;
+    final TextEditingController _explanationController = TextEditingController();
+    final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+
+    return showDialog<Map<String, String>?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              titlePadding: EdgeInsets.zero,
+              contentPadding: EdgeInsets.all(20),
+              actionsPadding: EdgeInsets.only(right: 16, bottom: 12),
+              title: Column(
+                children: [
+                  SizedBox(height: 16),
+                  Image.asset(
+                    'assets/images/phonewarn.png',
+                    height: 60,
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    'Phone Condition Check',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              content: Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Do you honestly confirm that the phone has no issues or damage before handing it over to the guard?',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          ChoiceChip(
+                            label: Text('Yes'),
+                            selected: phoneCondition == 'Yes',
+                            onSelected: (_) {
+                              setState(() {
+                                phoneCondition = 'Yes';
+                              });
+                            },
+                          ),
+                          ChoiceChip(
+                            label: Text('No'),
+                            selected: phoneCondition == 'No',
+                            onSelected: (_) {
+                              setState(() {
+                                phoneCondition = 'No';
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      if (phoneCondition == 'No') ...[
+                        SizedBox(height: 20),
+                        TextFormField(
+                          controller: _explanationController,
+                          decoration: InputDecoration(
+                            labelText: 'Please explain the issue',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          maxLines: 3,
+                          validator: (value) {
+                            if (phoneCondition == 'No' &&
+                                (value == null || value.trim().isEmpty)) {
+                              return 'Please provide an explanation';
+                            }
+                            return null;
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(null); // Cancelled
+                  },
+                  child: Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    if (phoneCondition == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Please select an option')),
+                      );
+                      return;
+                    }
+
+                    if (phoneCondition == 'No' && !_formKey.currentState!.validate()) {
+                      return;
+                    }
+
+                    String finalCondition = phoneCondition == 'Yes'
+                        ? 'Good'
+                        : 'Not Good: ${_explanationController.text.trim()}';
+
+                    Navigator.of(context).pop({'phoneConditionOut': finalCondition});
+                  },
+                  child: Text('Send'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
@@ -433,7 +593,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         }
 
         // Show phone condition dialog before anything else
-        final phoneConditionResult = await _showPhoneConditionDialog();
+        final phoneConditionResult = await _showPhoneConditionDialogIn();
         if (phoneConditionResult == null) {
           // User cancelled the dialog
           setState(() {
@@ -519,9 +679,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       }
     }
   }
-
   Future<void> _logout() async {
-
     final exemptedIds = ['1238', '1243', '0939', '1163', '1239', '1288', '1200'];
     final isExempted = exemptedIds.contains(_currentIdNumber);
 
@@ -532,6 +690,16 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         return;
       }
     }
+
+    // Show phone condition dialog for logout
+    final phoneConditionResult = await _showPhoneConditionDialogOut();
+    if (phoneConditionResult == null) {
+      // User cancelled the dialog
+      return;
+    }
+
+    String phoneConditionOut = phoneConditionResult['phoneConditionOut'] ?? 'Good: Yes';
+
     try {
       // First check if there are any active WTR sessions
       final activeSessionsCheck = await _apiService.checkActiveWTR(_currentIdNumber!);
@@ -606,7 +774,10 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       try {
         // Only logout from WTR system if there are active sessions
         if (activeSessionsCheck["hasActiveSessions"] == true) {
-          final logoutResult = await _apiService.logoutWTR(_currentIdNumber!);
+          final logoutResult = await _apiService.logoutWTR(
+            _currentIdNumber!,
+            phoneConditionOut: phoneConditionOut,
+          );
 
           // Check if this was an undertime logout
           if (logoutResult["isUndertime"] == true) {
@@ -633,18 +804,14 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           const SnackBar(content: Text('Logged out successfully')),
         );
       } catch (e) {
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
-        // );
+        // Error handling
       } finally {
         setState(() {
           _isLoading = false;
         });
       }
     } catch (e) {
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
-      // );
+      // Error handling
     }
   }
 

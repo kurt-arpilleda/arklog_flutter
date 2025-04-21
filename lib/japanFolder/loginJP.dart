@@ -310,7 +310,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   }
 
 
-  Future<Map<String, String>?> _showPhoneConditionDialog() async {
+  Future<Map<String, String>?> _showPhoneConditionDialogIn() async {
     String? phoneCondition;
     final TextEditingController _explanationController = TextEditingController();
     final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
@@ -322,57 +322,86 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: Text('携帯の状態'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              titlePadding: EdgeInsets.zero,
+              contentPadding: EdgeInsets.all(20),
+              actionsPadding: EdgeInsets.only(right: 16, bottom: 12),
+              title: Column(
+                children: [
+                  SizedBox(height: 16),
+                  Image.asset(
+                    'assets/images/phonecheck.png',
+                    height: 60,
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    '電話の状態チェック',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
               content: Form(
                 key: _formKey,
                 child: SingleChildScrollView(
-                  child: ListBody(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        '携帯の状態について正直に記入してください — すべてのユーザーはシステムに記録されています。',
+                        '使用する前に電話に問題や損傷がないことを確認しましたか？正直に答えてください — すべての入力はシステムに記録されており、既存の問題について責任を問われることは避けたいですよね。',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
                           color: Colors.red,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      RadioListTile<String>(
-                        title: Text('良好'),
-                        value: 'Good',
-                        groupValue: phoneCondition,
-                        onChanged: (String? value) {
-                          setState(() {
-                            phoneCondition = value;
-                          });
-                        },
-                      ),
-                      RadioListTile<String>(
-                        title: Text('良くない'),
-                        value: 'Bad',
-                        groupValue: phoneCondition,
-                        onChanged: (String? value) {
-                          setState(() {
-                            phoneCondition = value;
-                          });
-                        },
-                      ),
-                      if (phoneCondition == 'Bad')
-                        Padding(
-                          padding: const EdgeInsets.only(top: 8.0),
-                          child: TextFormField(
-                            controller: _explanationController,
-                            decoration: InputDecoration(
-                              labelText: '問題の内容を説明してください',
-                              border: OutlineInputBorder(),
-                            ),
-                            maxLines: 3,
-                            validator: (value) {
-                              if (phoneCondition == 'Bad' && (value == null || value.trim().isEmpty)) {
-                                return '説明を入力してください';
-                              }
-                              return null;
+                      SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          ChoiceChip(
+                            label: Text('はい'),
+                            selected: phoneCondition == 'Good',
+                            onSelected: (_) {
+                              setState(() {
+                                phoneCondition = 'Good';
+                              });
                             },
                           ),
+                          ChoiceChip(
+                            label: Text('いいえ'),
+                            selected: phoneCondition == 'Not Good',
+                            onSelected: (_) {
+                              setState(() {
+                                phoneCondition = 'Not Good';
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      if (phoneCondition == 'Not Good') ...[
+                        SizedBox(height: 20),
+                        TextFormField(
+                          controller: _explanationController,
+                          decoration: InputDecoration(
+                            labelText: '問題を説明してください',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          maxLines: 3,
+                          validator: (value) {
+                            if (phoneCondition == 'Not Good' &&
+                                (value == null || value.trim().isEmpty)) {
+                              return '説明を提供してください';
+                            }
+                            return null;
+                          },
                         ),
+                      ],
                     ],
                   ),
                 ),
@@ -380,31 +409,31 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
               actions: <Widget>[
                 TextButton(
                   onPressed: () {
-                    Navigator.of(context).pop(null); // キャンセル
+                    Navigator.of(context).pop(null); // Cancelled
                   },
                   child: Text('キャンセル'),
                 ),
                 TextButton(
-                  child: Text('OK'),
                   onPressed: () {
                     if (phoneCondition == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('携帯の状態を選択してください')),
+                        SnackBar(content: Text('電話の状態を選択してください')),
                       );
                       return;
                     }
 
-                    if (phoneCondition == 'Bad' && !_formKey.currentState!.validate()) {
+                    if (phoneCondition == 'Not Good' && !_formKey.currentState!.validate()) {
                       return;
                     }
 
                     String finalCondition = phoneCondition!;
-                    if (phoneCondition == 'Bad') {
-                      finalCondition = '悪い: ${_explanationController.text.trim()}';
+                    if (phoneCondition == 'Not Good') {
+                      finalCondition = 'Not Good: ${_explanationController.text.trim()}';
                     }
 
                     Navigator.of(context).pop({'phoneCondition': finalCondition});
                   },
+                  child: Text('送信'),
                 ),
               ],
             );
@@ -414,7 +443,137 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     );
   }
 
+  Future<Map<String, String>?> _showPhoneConditionDialogOut() async {
+    String? phoneCondition;
+    final TextEditingController _explanationController = TextEditingController();
+    final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
 
+    return showDialog<Map<String, String>?>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              titlePadding: EdgeInsets.zero,
+              contentPadding: EdgeInsets.all(20),
+              actionsPadding: EdgeInsets.only(right: 16, bottom: 12),
+              title: Column(
+                children: [
+                  SizedBox(height: 16),
+                  Image.asset(
+                    'assets/images/phonewarn.png',
+                    height: 60,
+                  ),
+                  SizedBox(height: 12),
+                  Text(
+                    '電話の状態チェック',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              content: Form(
+                key: _formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        '警備員に渡す前に、電話に問題や損傷がないことを正直に確認しますか？',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.red,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          ChoiceChip(
+                            label: Text('はい'),
+                            selected: phoneCondition == 'Yes',
+                            onSelected: (_) {
+                              setState(() {
+                                phoneCondition = 'Yes';
+                              });
+                            },
+                          ),
+                          ChoiceChip(
+                            label: Text('いいえ'),
+                            selected: phoneCondition == 'No',
+                            onSelected: (_) {
+                              setState(() {
+                                phoneCondition = 'No';
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                      if (phoneCondition == 'No') ...[
+                        SizedBox(height: 20),
+                        TextFormField(
+                          controller: _explanationController,
+                          decoration: InputDecoration(
+                            labelText: '問題を説明してください',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          maxLines: 3,
+                          validator: (value) {
+                            if (phoneCondition == 'No' &&
+                                (value == null || value.trim().isEmpty)) {
+                              return '説明を提供してください';
+                            }
+                            return null;
+                          },
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(null); // Cancelled
+                  },
+                  child: Text('キャンセル'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    if (phoneCondition == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('オプションを選択してください')),
+                      );
+                      return;
+                    }
+
+                    if (phoneCondition == 'No' && !_formKey.currentState!.validate()) {
+                      return;
+                    }
+
+                    String finalCondition = phoneCondition == 'Yes'
+                        ? 'Good'
+                        : 'Not Good: ${_explanationController.text.trim()}';
+
+                    Navigator.of(context).pop({'phoneConditionOut': finalCondition});
+                  },
+                  child: Text('送信'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
@@ -427,7 +586,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         if (activeLoginCheck["hasActiveLogin"] == true) {
           String phoneName = activeLoginCheck["phoneName"] ?? "another device";
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('あなたは $phoneName でアクティブなログインセッションがあります')),
+              SnackBar(content: Text('$phoneName でアクティブなログインセッションがあります')),
           );
           setState(() {
             _isLoading = false;
@@ -436,7 +595,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         }
 
         // Show phone condition dialog before anything else
-        final phoneConditionResult = await _showPhoneConditionDialog();
+        final phoneConditionResult = await _showPhoneConditionDialogIn();
         if (phoneConditionResult == null) {
           // User cancelled the dialog
           setState(() {
@@ -494,7 +653,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      child: Text("はい"),
+                      child: Text("了解"),
                     ),
                   ],
                 );
@@ -505,9 +664,8 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
 
         String successMessage = 'ID: $actualIdNumber で正常にログインしました';
         if (wtrResponse['updated'] == true) {
-          successMessage = '既存のWTR記録をデバイス情報で正常に更新しました';
+          successMessage = 'デバイス情報で既存のWTRレコードを正常に更新しました';
         }
-
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(successMessage)),
@@ -523,9 +681,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       }
     }
   }
-
   Future<void> _logout() async {
-
     final exemptedIds = ['1238', '1243', '0939', '1163', '1239', '1288', '1200'];
     final isExempted = exemptedIds.contains(_currentIdNumber);
 
@@ -536,6 +692,16 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         return;
       }
     }
+
+    // Show phone condition dialog for logout
+    final phoneConditionResult = await _showPhoneConditionDialogOut();
+    if (phoneConditionResult == null) {
+      // User cancelled the dialog
+      return;
+    }
+
+    String phoneConditionOut = phoneConditionResult['phoneConditionOut'] ?? 'Good: Yes';
+
     try {
       // First check if there are any active WTR sessions
       final activeSessionsCheck = await _apiService.checkActiveWTR(_currentIdNumber!);
@@ -554,8 +720,8 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
             context: context,
             builder: (BuildContext context) {
               return AlertDialog(
-                title: const Text("早めのログアウト"),
-                content: Text("あなたのシフトは ${confirmResult["shiftOut"]} に終了します。今すぐログアウトしてもよろしいですか？"),
+                title: const Text("早退"),
+                content: Text("あなたのシフトは${confirmResult["shiftOut"]}に終了します。今すぐログアウトしてもよろしいですか？"),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(false),
@@ -563,7 +729,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                   ),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text("強制的にログアウト"),
+                      child: const Text("それでもログアウト"),
                   ),
                 ],
               );
@@ -577,7 +743,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
               context: context,
               builder: (BuildContext context) {
                 return AlertDialog(
-                  title: const Text("ログアウトの確認"),
+                  title: const Text("ログアウト確認"),
                   content: const Text("本当にログアウトしてもよろしいですか？"),
                   actions: [
                     TextButton(
@@ -610,13 +776,16 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       try {
         // Only logout from WTR system if there are active sessions
         if (activeSessionsCheck["hasActiveSessions"] == true) {
-          final logoutResult = await _apiService.logoutWTR(_currentIdNumber!);
+          final logoutResult = await _apiService.logoutWTR(
+            _currentIdNumber!,
+            phoneConditionOut: phoneConditionOut,
+          );
 
           // Check if this was an undertime logout
           if (logoutResult["isUndertime"] == true) {
             // Show undertime message
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('シフト終了前にログアウトしました')),
+                const SnackBar(content: Text('シフト終了前にログアウトしました')),
             );
           }
         }
@@ -634,23 +803,20 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('正常にログアウトしました')),
+            const SnackBar(content: Text('正常にログアウトしました')),
         );
       } catch (e) {
-        // ScaffoldMessenger.of(context).showSnackBar(
-        //   SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
-        // );
+        // Error handling
       } finally {
         setState(() {
           _isLoading = false;
         });
       }
     } catch (e) {
-      // ScaffoldMessenger.of(context).showSnackBar(
-      //   SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
-      // );
+      // Error handling
     }
   }
+
 
   Future<bool?> _showQrScanner() async {
     _qrErrorMessage = null; // Reset error message
