@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'api_serviceJP.dart';
@@ -893,31 +894,46 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     );
   }
 
+  String xorDecrypt(String base64Data, String key) {
+    final decodedBytes = base64.decode(base64Data);
+    final keyBytes = utf8.encode(key);
+    final decryptedBytes = List<int>.generate(decodedBytes.length, (i) {
+      return decodedBytes[i] ^ keyBytes[i % keyBytes.length];
+    });
+    return utf8.decode(decryptedBytes);
+  }
+
   void _onQRViewCreated(QRViewController controller, void Function(void Function()) setState) {
     qrController = controller;
     bool isVerified = false;
 
     controller.scannedDataStream.listen((scanData) {
-      if (isVerified) return; // Prevent multiple verifications
+      if (isVerified) return;
 
       final qrData = scanData.code;
       if (qrData == null) return;
 
-      // Check if QR data matches the expected format
-      final regex = RegExp(r'^DateTime=\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$');
-      if (regex.hasMatch(qrData)) {
-        isVerified = true;
-        qrController?.pauseCamera();
-        Navigator.of(context).pop(true);
-        qrController?.dispose();
-      } else {
-        // Show error message below the camera
+      try {
+        final decrypted = xorDecrypt(qrData, 'arklog123'); // same key as used in PHP
+
+        if (decrypted == '4rkT3chBirthD@y=2003-06-09 06:31:20') {
+          isVerified = true;
+          qrController?.pauseCamera();
+          Navigator.of(context).pop(true);
+          qrController?.dispose();
+        } else {
+          setState(() {
+            _qrErrorMessage = '無効なQRコードのデータです';
+          });
+        }
+      } catch (e) {
         setState(() {
-          _qrErrorMessage = '無効なQRコードの形式です';
+          _qrErrorMessage = 'QRコードの読み取りに失敗しました';
         });
       }
     });
   }
+
 
   Future<String> _getDeviceId() async {
     try {
