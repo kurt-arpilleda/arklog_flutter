@@ -313,115 +313,158 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     String? phoneCondition;
     final TextEditingController _explanationController = TextEditingController();
     final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+    final ScrollController _scrollController = ScrollController();
+    final FocusNode _explanationFocusNode = FocusNode();
 
     return showDialog<Map<String, String>?>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final dialogWidth = screenWidth * 0.95 > 480 ? 480.0 : screenWidth * 0.95;
+
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              titlePadding: EdgeInsets.zero,
-              contentPadding: EdgeInsets.all(20),
-              actionsPadding: EdgeInsets.only(right: 16, bottom: 12),
-              title: Column(
-                children: [
-                  SizedBox(height: 16),
-                  Image.asset(
-                    'assets/images/phonecheck.png',
-                    height: 60,
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    'Phone Condition Check',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              content: Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'Are you sure the phone has no issues or damage before using it? Please be honest — every entry is recorded in the system, and you don’t want to be held responsible for any existing problems.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.w600,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              contentPadding: EdgeInsets.all(24),
+              actionsPadding: EdgeInsets.only(right: 16, bottom: 16),
+              content: Container(
+                width: dialogWidth,
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        Column(
+                          children: [
+                            Image.asset(
+                              'assets/images/phonecheck.png',
+                              height: 80,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              'Phone Condition Check',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blueGrey.shade800,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          ChoiceChip(
-                            label: Text('Yes'),
-                            selected: phoneCondition == 'Good',
-                            onSelected: (_) {
-                              setState(() {
-                                phoneCondition = 'Good';
-                              });
-                            },
+                        SizedBox(height: 24),
+                        Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.amber.shade900),
                           ),
-                          ChoiceChip(
-                            label: Text('No'),
-                            selected: phoneCondition == 'Not Good',
-                            onSelected: (_) {
-                              setState(() {
-                                phoneCondition = 'Not Good';
-                              });
+                          child: Row(
+                            children: [
+                              Icon(Icons.warning_amber_rounded, color: Colors.amber.shade900),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Are you sure the phone has no issues or damage before using it? Please be honest — every entry is recorded in the system, and you don’t want to be held responsible for any existing problems.',
+                                  style: TextStyle(
+                                    color: Colors.amber.shade900,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 20),
+                        Wrap(
+                          spacing: 12,
+                          alignment: WrapAlignment.center,
+                          children: [
+                            ChoiceChip(
+                              label: Text('Good', style: TextStyle(fontWeight: FontWeight.w500)),
+                              selected: phoneCondition == 'Good',
+                              selectedColor: Colors.green.shade100,
+                              onSelected: (_) {
+                                setState(() => phoneCondition = 'Good');
+                              },
+                            ),
+                            ChoiceChip(
+                              label: Text('Not Good', style: TextStyle(fontWeight: FontWeight.w500)),
+                              selected: phoneCondition == 'Not Good',
+                              selectedColor: Colors.red.shade100,
+                              onSelected: (_) {
+                                setState(() {
+                                  phoneCondition = 'Not Good';
+                                  Future.delayed(Duration(milliseconds: 300), () {
+                                    _scrollController.animateTo(
+                                      _scrollController.position.maxScrollExtent,
+                                      duration: Duration(milliseconds: 400),
+                                      curve: Curves.easeOut,
+                                    );
+                                    FocusScope.of(context).requestFocus(_explanationFocusNode);
+                                  });
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                        if (phoneCondition == 'Not Good') ...[
+                          SizedBox(height: 20),
+                          TextFormField(
+                            controller: _explanationController,
+                            focusNode: _explanationFocusNode,
+                            decoration: InputDecoration(
+                              labelText: 'Please explain the issue',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey.shade50,
+                            ),
+                            maxLines: 3,
+                            validator: (value) {
+                              if (phoneCondition == 'Not Good' &&
+                                  (value == null || value.trim().isEmpty)) {
+                                return 'Please provide an explanation';
+                              }
+                              return null;
                             },
                           ),
                         ],
-                      ),
-                      if (phoneCondition == 'Not Good') ...[
-                        SizedBox(height: 20),
-                        TextFormField(
-                          controller: _explanationController,
-                          decoration: InputDecoration(
-                            labelText: 'Please explain the issue',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          maxLines: 3,
-                          validator: (value) {
-                            if (phoneCondition == 'Not Good' &&
-                                (value == null || value.trim().isEmpty)) {
-                              return 'Please provide an explanation';
-                            }
-                            return null;
-                          },
-                        ),
+                        SizedBox(height: 8),
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
               actions: <Widget>[
                 TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(null); // Cancelled
-                  },
-                  child: Text('Cancel'),
+                  onPressed: () => Navigator.of(context).pop(null),
+                  child: Text('Cancel', style: TextStyle(color: Colors.grey.shade700)),
                 ),
-                TextButton(
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                   onPressed: () {
                     if (phoneCondition == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please select a phone condition')),
+                        SnackBar(content: Text('Please select phone condition')),
                       );
                       return;
                     }
 
-                    if (phoneCondition == 'Not Good' && !_formKey.currentState!.validate()) {
+                    if (phoneCondition == 'Not Good' &&
+                        !_formKey.currentState!.validate()) {
                       return;
                     }
 
@@ -432,7 +475,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 
                     Navigator.of(context).pop({'phoneCondition': finalCondition});
                   },
-                  child: Text('Send'),
+                  child: Text('Confirm'),
                 ),
               ],
             );
@@ -446,6 +489,24 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     String? phoneCondition;
     final TextEditingController _explanationController = TextEditingController();
     final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+    final ScrollController _scrollController = ScrollController();
+    final FocusNode _explanationFocusNode = FocusNode();
+
+    final currentDate = DateFormat('MMMM d, y').format(DateTime.now());
+
+    Map<String, dynamic> shiftTimeInfo = {};
+    Map<String, dynamic> outputToday = {'totalCount': 0, 'totalQty': 0};
+    try {
+      if (_currentIdNumber != null) {
+        setState(() => _isLoading = true);
+        shiftTimeInfo = await _apiService.getShiftTimeInfo(_currentIdNumber!);
+        outputToday = await _apiService.getOutputToday(_currentIdNumber!);
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      print("Error fetching data: $e");
+    }
 
     return showDialog<Map<String, String>?>(
       context: context,
@@ -453,99 +514,174 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setState) {
+            final screenWidth = MediaQuery.of(context).size.width;
+            final dialogWidth = screenWidth * 0.95 > 480 ? 480.0 : screenWidth * 0.95;
+
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              titlePadding: EdgeInsets.zero,
-              contentPadding: EdgeInsets.all(20),
-              actionsPadding: EdgeInsets.only(right: 16, bottom: 12),
-              title: Column(
-                children: [
-                  SizedBox(height: 16),
-                  Image.asset(
-                    'assets/images/phonewarn.png',
-                    height: 60,
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    'Phone Condition Check',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              content: Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'Do you honestly confirm that the phone has no issues or damage before handing it over to the guard?',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          ChoiceChip(
-                            label: Text('Yes'),
-                            selected: phoneCondition == 'Yes',
-                            onSelected: (_) {
-                              setState(() {
-                                phoneCondition = 'Yes';
-                              });
-                            },
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              contentPadding: EdgeInsets.all(24),
+              actionsPadding: EdgeInsets.only(right: 16, bottom: 16),
+              content: Container(
+                width: dialogWidth,
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        if (_currentIdNumber != null &&
+                            (_profilePictureUrl != null || _firstName != null || _surName != null))
+                          Column(
+                            children: [
+                              if (_profilePictureUrl != null)
+                                CircleAvatar(
+                                  radius: 35,
+                                  backgroundImage: NetworkImage(_profilePictureUrl!),
+                                  backgroundColor: Colors.grey[300],
+                                ),
+                              SizedBox(height: 10),
+                              if (_firstName != null && _surName != null)
+                                Text(
+                                  '$_firstName $_surName',
+                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                                  textAlign: TextAlign.center,
+                                ),
+                              SizedBox(height: 4),
+                              Text(
+                                currentDate,
+                                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                              ),
+                              SizedBox(height: 20),
+
+                              // Output Today
+                              _buildInfoCard(
+                                title: 'Your Output Today',
+                                content: Column(
+                                  children: [
+                                    _buildInfoRow('Item Count', outputToday['totalCount'].toString()),
+                                    SizedBox(height: 8),
+                                    _buildInfoRow('Item Quantity', outputToday['totalQty'].toString()),
+                                  ],
+                                ),
+                                backgroundColor: Colors.indigo.shade50,
+                                titleColor: Colors.indigo.shade800,
+                                centerTitle: true,
+                              ),
+                              SizedBox(height: 16),
+
+                              // Time Log
+                              if (shiftTimeInfo.isNotEmpty)
+                                _buildInfoCard(
+                                  title: 'Time Log',
+                                  content: Column(
+                                    children: [
+                                      _buildTimeRow('Time In', shiftTimeInfo['timeIn'] ?? 'N/A'),
+                                      SizedBox(height: 8),
+                                      _buildTimeRow('Login', shiftTimeInfo['loginTime'] ?? 'N/A'),
+                                    ],
+                                  ),
+                                  backgroundColor: Colors.grey.shade100,
+                                  titleColor: Colors.grey.shade800,
+                                  centerTitle: true,
+                                ),
+                              SizedBox(height: 24),
+                            ],
                           ),
-                          ChoiceChip(
-                            label: Text('No'),
-                            selected: phoneCondition == 'No',
-                            onSelected: (_) {
-                              setState(() {
-                                phoneCondition = 'No';
-                              });
+                        Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.warning_amber_rounded, color: Colors.amber.shade900),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  'Do you confirm the phone has no issues before handing it to the guard?',
+                                  style: TextStyle(
+                                    color: Colors.amber.shade900,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 20),
+                        Wrap(
+                          spacing: 12,
+                          alignment: WrapAlignment.center,
+                          children: [
+                            ChoiceChip(
+                              label: Text('Yes'),
+                              selected: phoneCondition == 'Yes',
+                              selectedColor: Colors.green.shade100,
+                              onSelected: (_) {
+                                setState(() => phoneCondition = 'Yes');
+                              },
+                            ),
+                            ChoiceChip(
+                              label: Text('No'),
+                              selected: phoneCondition == 'No',
+                              selectedColor: Colors.red.shade100,
+                              onSelected: (_) {
+                                setState(() {
+                                  phoneCondition = 'No';
+
+                                  // Delay to ensure UI rebuilds before scrolling/focus
+                                  Future.delayed(Duration(milliseconds: 300), () {
+                                    _scrollController.animateTo(
+                                      _scrollController.position.maxScrollExtent,
+                                      duration: Duration(milliseconds: 400),
+                                      curve: Curves.easeOut,
+                                    );
+                                    FocusScope.of(context).requestFocus(_explanationFocusNode);
+                                  });
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                        if (phoneCondition == 'No') ...[
+                          SizedBox(height: 20),
+                          TextFormField(
+                            controller: _explanationController,
+                            focusNode: _explanationFocusNode,
+                            decoration: InputDecoration(
+                              labelText: 'Please explain the issue',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            maxLines: 3,
+                            validator: (value) {
+                              if (phoneCondition == 'No' &&
+                                  (value == null || value.trim().isEmpty)) {
+                                return 'Please provide an explanation';
+                              }
+                              return null;
                             },
                           ),
                         ],
-                      ),
-                      if (phoneCondition == 'No') ...[
-                        SizedBox(height: 20),
-                        TextFormField(
-                          controller: _explanationController,
-                          decoration: InputDecoration(
-                            labelText: 'Please explain the issue',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          maxLines: 3,
-                          validator: (value) {
-                            if (phoneCondition == 'No' &&
-                                (value == null || value.trim().isEmpty)) {
-                              return 'Please provide an explanation';
-                            }
-                            return null;
-                          },
-                        ),
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
               actions: <Widget>[
                 TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(null); // Cancelled
-                  },
+                  onPressed: () => Navigator.of(context).pop(null),
                   child: Text('Cancel'),
                 ),
-                TextButton(
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
                   onPressed: () {
                     if (phoneCondition == null) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -564,7 +700,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 
                     Navigator.of(context).pop({'phoneConditionOut': finalCondition});
                   },
-                  child: Text('Send'),
+                  child: Text('Confirm'),
                 ),
               ],
             );
@@ -573,6 +709,67 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       },
     );
   }
+
+
+  Widget _buildTimeRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(fontWeight: FontWeight.w500)),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.blueGrey,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(fontWeight: FontWeight.w500)),
+        Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+      ],
+    );
+  }
+
+  Widget _buildInfoCard({
+    required String title,
+    required Widget content,
+    required Color backgroundColor,
+    required Color titleColor,
+    bool centerTitle = false,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment:
+        centerTitle ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: titleColor,
+            ),
+          ),
+          SizedBox(height: 12),
+          content,
+        ],
+      ),
+    );
+  }
+
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
@@ -681,7 +878,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     }
   }
   Future<void> _logout() async {
-    final exemptedIds = ['1243', '0939', '1163', '1239', '1288', '1200'];
+    final exemptedIds = ['1243', '0939', '1163', '1239', '1288', '1238'];
     final isExempted = exemptedIds.contains(_currentIdNumber);
 
     // Only show QR scanner for non exempted users
@@ -929,7 +1126,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       }
     });
   }
-
 
   Future<String> _getDeviceId() async {
     try {
