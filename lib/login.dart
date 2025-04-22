@@ -457,6 +457,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                   ),
                   onPressed: () {
                     if (phoneCondition == null) {
+                      ScaffoldMessenger.of(context).removeCurrentSnackBar();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Please select phone condition')),
                       );
@@ -492,10 +493,16 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     final ScrollController _scrollController = ScrollController();
     final FocusNode _explanationFocusNode = FocusNode();
 
+    final GlobalKey _choiceChipsKey = GlobalKey(); // 🔑 For scrolling to ChoiceChips
+
+    late final AnimationController _shakeController;
+    late final Animation<double> _offsetAnimation;
+
     final currentDate = DateFormat('MMMM d, y').format(DateTime.now());
 
     Map<String, dynamic> shiftTimeInfo = {};
     Map<String, dynamic> outputToday = {'totalCount': 0, 'totalQty': 0};
+
     try {
       if (_currentIdNumber != null) {
         setState(() => _isLoading = true);
@@ -516,6 +523,19 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           builder: (context, setState) {
             final screenWidth = MediaQuery.of(context).size.width;
             final dialogWidth = screenWidth * 0.95 > 480 ? 480.0 : screenWidth * 0.95;
+
+            _shakeController = AnimationController(
+              duration: Duration(milliseconds: 400),
+              vsync: Navigator.of(context),
+            );
+
+            _offsetAnimation = TweenSequence<double>([
+              TweenSequenceItem(tween: Tween(begin: 0.0, end: -8.0), weight: 1),
+              TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
+              TweenSequenceItem(tween: Tween(begin: 8.0, end: -8.0), weight: 2),
+              TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
+              TweenSequenceItem(tween: Tween(begin: 8.0, end: 0.0), weight: 1),
+            ]).animate(_shakeController);
 
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -554,7 +574,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                               ),
                               SizedBox(height: 20),
 
-                              // Output Today
                               _buildInfoCard(
                                 title: 'Your Output Today',
                                 content: Column(
@@ -570,7 +589,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                               ),
                               SizedBox(height: 16),
 
-                              // Time Log
                               if (shiftTimeInfo.isNotEmpty)
                                 _buildInfoCard(
                                   title: 'Time Log',
@@ -611,40 +629,50 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                           ),
                         ),
                         SizedBox(height: 20),
-                        Wrap(
-                          spacing: 12,
-                          alignment: WrapAlignment.center,
-                          children: [
-                            ChoiceChip(
-                              label: Text('Yes'),
-                              selected: phoneCondition == 'Yes',
-                              selectedColor: Colors.green.shade100,
-                              onSelected: (_) {
-                                setState(() => phoneCondition = 'Yes');
-                              },
-                            ),
-                            ChoiceChip(
-                              label: Text('No'),
-                              selected: phoneCondition == 'No',
-                              selectedColor: Colors.red.shade100,
-                              onSelected: (_) {
-                                setState(() {
-                                  phoneCondition = 'No';
 
-                                  // Delay to ensure UI rebuilds before scrolling/focus
-                                  Future.delayed(Duration(milliseconds: 300), () {
-                                    _scrollController.animateTo(
-                                      _scrollController.position.maxScrollExtent,
-                                      duration: Duration(milliseconds: 400),
-                                      curve: Curves.easeOut,
-                                    );
-                                    FocusScope.of(context).requestFocus(_explanationFocusNode);
+                        AnimatedBuilder(
+                          animation: _shakeController,
+                          builder: (context, child) {
+                            return Transform.translate(
+                              offset: Offset(_offsetAnimation.value, 0),
+                              child: child,
+                            );
+                          },
+                          child: Wrap(
+                            key: _choiceChipsKey, // 👈 Apply the key here
+                            spacing: 12,
+                            alignment: WrapAlignment.center,
+                            children: [
+                              ChoiceChip(
+                                label: Text('Yes'),
+                                selected: phoneCondition == 'Yes',
+                                selectedColor: Colors.green.shade100,
+                                onSelected: (_) {
+                                  setState(() => phoneCondition = 'Yes');
+                                },
+                              ),
+                              ChoiceChip(
+                                label: Text('No'),
+                                selected: phoneCondition == 'No',
+                                selectedColor: Colors.red.shade100,
+                                onSelected: (_) {
+                                  setState(() {
+                                    phoneCondition = 'No';
+                                    Future.delayed(Duration(milliseconds: 300), () {
+                                      _scrollController.animateTo(
+                                        _scrollController.position.maxScrollExtent,
+                                        duration: Duration(milliseconds: 400),
+                                        curve: Curves.easeOut,
+                                      );
+                                      FocusScope.of(context).requestFocus(_explanationFocusNode);
+                                    });
                                   });
-                                });
-                              },
-                            ),
-                          ],
+                                },
+                              ),
+                            ],
+                          ),
                         ),
+
                         if (phoneCondition == 'No') ...[
                           SizedBox(height: 20),
                           TextFormField(
@@ -682,11 +710,18 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  onPressed: () {
+                  onPressed: () async {
                     if (phoneCondition == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please select an option')),
-                      );
+                      // 👇 Scroll into view before shaking
+                      final contextChoice = _choiceChipsKey.currentContext;
+                      if (contextChoice != null) {
+                        await Scrollable.ensureVisible(
+                          contextChoice,
+                          duration: Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      }
+                      _shakeController.forward(from: 0);
                       return;
                     }
 
@@ -709,7 +744,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       },
     );
   }
-
 
   Widget _buildTimeRow(String label, String value) {
     return Row(
@@ -780,9 +814,13 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         // First check for active login before proceeding
         final activeLoginCheck = await _apiService.checkActiveLogin(_idController.text);
         if (activeLoginCheck["hasActiveLogin"] == true) {
-          String phoneName = activeLoginCheck["phoneName"] ?? "another device";
+          String deviceInfo = activeLoginCheck["phoneName"] ?? activeLoginCheck["deviceID"] ?? "another device";
+          ScaffoldMessenger.of(context).removeCurrentSnackBar(); // Remove any existing snackbar
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('You have an active login session on $phoneName')),
+            SnackBar(
+              content: Text('You have an active login session on $deviceInfo'),
+              behavior: SnackBarBehavior.fixed, // Optional: prevents floating behavior
+            ),
           );
           setState(() {
             _isLoading = false;
@@ -862,11 +900,12 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         if (wtrResponse['updated'] == true) {
           successMessage = 'Successfully updated existing WTR record with device info';
         }
-
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(successMessage)),
         );
       } catch (e) {
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
         );
@@ -980,6 +1019,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           // Check if this was an undertime logout
           if (logoutResult["isUndertime"] == true) {
             // Show undertime message
+            ScaffoldMessenger.of(context).removeCurrentSnackBar();
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('You have logged out before your shift ended')),
             );
@@ -997,7 +1037,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           _currentIdNumber = null;
           _idController.clear();
         });
-
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Logged out successfully')),
         );
