@@ -47,7 +47,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   String? _qrErrorMessage;
   Timer? _timer;
   bool _isExclusiveUser = false;
-  String _phoneName = 'ARK LOG';
+  String _phoneName = 'ARK LOG PH';
   @override
   void initState() {
     super.initState();
