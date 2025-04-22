@@ -47,6 +47,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   String? _qrErrorMessage;
   Timer? _timer;
   bool _isExclusiveUser = false;
+  String _phoneName = 'ARK LOG';
   @override
   void initState() {
     super.initState();
@@ -93,7 +94,17 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       setState(() {
         _isExclusiveUser = false;
       });
-
+      if (_deviceId != null) {
+        try {
+          final fetchedPhoneName = await _apiService.fetchPhoneName(_deviceId!);
+          setState(() {
+            _phoneName = fetchedPhoneName;
+          });
+        } catch (e) {
+          debugPrint("Error fetching phone name: $e");
+          // Continue with default name if fetch fails
+        }
+      }
       // Check for exclusive login
       if (_deviceId != null) {
         try {
@@ -513,7 +524,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       },
     );
   }
-
 
   Future<Map<String, String>?> _showPhoneConditionDialogOut() async {
     String? phoneCondition;
@@ -1335,7 +1345,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                           child: Column(
                             children: [
                               Text(
-                                'ARK LOG PH',
+                                _phoneName,
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 24,
