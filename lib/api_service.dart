@@ -156,7 +156,7 @@ class ApiService {
 
             if (checkData["success"] == true && checkData["hasActiveSessions"] == true) {
               // Update the existing WTR record with phoneName and dateInDetail
-              final updateUri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_existingInsert2.php");
+              final updateUri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_existingInsert.php");
               final updateResponse = await http.post(
                 updateUri,
                 body: {
@@ -181,7 +181,7 @@ class ApiService {
           }
 
           // If no active sessions or update failed, proceed with normal insertion
-          final insertUri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_insertWTR2.php");
+          final insertUri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_insertWTR.php");
           final response = await http.post(
             insertUri,
             body: {
@@ -274,7 +274,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkActiveLogin2.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkActiveLogin.php");
           final response = await http.post(
             uri,
             body: {
@@ -301,7 +301,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
         try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_logoutWTR2.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_logoutWTR.php");
           final response = await http.post(
             uri,
             body: {
