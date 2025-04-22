@@ -47,6 +47,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   String? _qrErrorMessage;
   Timer? _timer;
   bool _isExclusiveUser = false;
+  String _phoneName = 'ARK LOG';
   @override
   void initState() {
     super.initState();
@@ -65,11 +66,11 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     }
   }
   void _updateDateTime() {
+    // Get Tokyo timezone
     final tokyo = tz.getLocation('Asia/Tokyo');
     final now = tz.TZDateTime.now(tokyo);
 
-    final formattedDate = DateFormat('yyyy年MM月dd日 HH:mm:ss').format(now);
-
+    final formattedDate = DateFormat('MMMM dd, yyyy HH:mm:ss').format(now);
 
     if (mounted) {
       setState(() {
@@ -94,7 +95,16 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       setState(() {
         _isExclusiveUser = false;
       });
-
+      if (_deviceId != null) {
+        try {
+          final fetchedPhoneName = await _apiService.fetchPhoneName(_deviceId!);
+          setState(() {
+            _phoneName = fetchedPhoneName;
+          });
+        } catch (e) {
+          debugPrint("電話名の取得中にエラーが発生しました: $e");
+        }
+      }
       // Check for exclusive login
       if (_deviceId != null) {
         try {
@@ -139,14 +149,13 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
             });
           }
         } catch (e) {
-          debugPrint("Exclusive login check failed: $e");
-          // Continue with normal flow if exclusive check fails
+          debugPrint("排他的ログインチェックに失敗しました: $e");
         }
         // Normal flow if not exclusive user
         await _loadLastIdNumber();
       }
     } catch (e) {
-      debugPrint("Error initializing app: $e");
+      debugPrint("アプリの初期化中にエラーが発生しました: $e");
     } finally {
       setState(() {
         _isInitializing = false;
@@ -206,9 +215,9 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         Navigator.pushReplacementNamed(context, '/loginJP');
       }
     } catch (e) {
-      print("Error updating country preference: $e");
+      print("国の設定を更新中にエラーが発生しました: $e");
       Fluttertoast.showToast(
-        msg: "Error updating country: ${e.toString()}",
+        msg: "国の更新中にエラーが発生しました: ${e.toString()}",
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.BOTTOM,
       );
@@ -232,13 +241,13 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         await channel.invokeMethod('showInputMethodPicker');
       } else {
         Fluttertoast.showToast(
-          msg: "Keyboard selection is only available on Android",
+          msg: "キーボードの選択はAndroidでのみ利用可能です",
           toastLength: Toast.LENGTH_SHORT,
           gravity: ToastGravity.BOTTOM,
         );
       }
     } catch (e) {
-      debugPrint("Error showing input method picker: $e");
+      debugPrint("入力方式の選択画面を表示中にエラーが発生しました: $e");
     }
   }
 
@@ -258,7 +267,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         });
       }
     } catch (e) {
-      print('Error loading last ID number: $e');
+      print('最後のID番号の読み込み中にエラーが発生しました: $e');
     }
   }
 
@@ -289,7 +298,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         });
       }
     } catch (e) {
-      print("Error fetching profile: $e");
+      print("プロフィールの取得中にエラーが発生しました: $e");
     }
   }
   String _formatTimeIn(String timeIn) {
@@ -310,131 +319,202 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     }
   }
 
-
   Future<Map<String, String>?> _showPhoneConditionDialogIn() async {
     String? phoneCondition;
     final TextEditingController _explanationController = TextEditingController();
     final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+    final ScrollController _scrollController = ScrollController();
+    final FocusNode _explanationFocusNode = FocusNode();
+
+    final GlobalKey _choiceChipsKey = GlobalKey();
 
     return showDialog<Map<String, String>?>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final dialogWidth = screenWidth * 0.95 > 480 ? 480.0 : screenWidth * 0.95;
+
         return StatefulBuilder(
           builder: (context, setState) {
+            final AnimationController _shakeController = AnimationController(
+              duration: Duration(milliseconds: 400),
+              vsync: Navigator.of(context),
+            );
+
+            final Animation<double> _offsetAnimation = TweenSequence<double>([
+              TweenSequenceItem(tween: Tween(begin: 0.0, end: -8.0), weight: 1),
+              TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
+              TweenSequenceItem(tween: Tween(begin: 8.0, end: -8.0), weight: 2),
+              TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
+              TweenSequenceItem(tween: Tween(begin: 8.0, end: 0.0), weight: 1),
+            ]).animate(_shakeController);
+
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              titlePadding: EdgeInsets.zero,
-              contentPadding: EdgeInsets.all(20),
-              actionsPadding: EdgeInsets.only(right: 16, bottom: 12),
-              title: Column(
-                children: [
-                  SizedBox(height: 16),
-                  Image.asset(
-                    'assets/images/phonecheck.png',
-                    height: 60,
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    '電話の状態チェック',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              content: Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        '使用する前に電話に問題や損傷がないことを確認しましたか？正直に答えてください — すべての入力はシステムに記録されており、既存の問題について責任を問われることは避けたいですよね。',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.w600,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              contentPadding: EdgeInsets.all(24),
+              actionsPadding: EdgeInsets.only(right: 16, bottom: 16),
+              content: Container(
+                width: dialogWidth,
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        Column(
+                          children: [
+                            Image.asset(
+                              'assets/images/phonecheck.png',
+                              height: 80,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              '電話状態確認',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blueGrey.shade800,
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          ChoiceChip(
-                            label: Text('はい'),
-                            selected: phoneCondition == 'Good',
-                            onSelected: (_) {
-                              setState(() {
-                                phoneCondition = 'Good';
-                              });
-                            },
+                        SizedBox(height: 24),
+                        Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.amber.shade900),
                           ),
-                          ChoiceChip(
-                            label: Text('いいえ'),
-                            selected: phoneCondition == 'Not Good',
-                            onSelected: (_) {
-                              setState(() {
-                                phoneCondition = 'Not Good';
-                              });
+                          child: Row(
+                            children: [
+                              Icon(Icons.warning_amber_rounded, color: Colors.amber.shade900),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '使用する前に電話に問題や損傷がないことを確認しましたか？正直に答えてください — すべての入力はシステムに記録されており、既存の問題に対して責任を問われたくはないはずです。',
+                                  style: TextStyle(
+                                    color: Colors.amber.shade900,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 20),
+                        AnimatedBuilder(
+                          animation: _shakeController,
+                          builder: (context, child) {
+                            return Transform.translate(
+                              offset: Offset(_offsetAnimation.value, 0),
+                              child: child,
+                            );
+                          },
+                          child: Wrap(
+                            key: _choiceChipsKey,
+                            spacing: 12,
+                            alignment: WrapAlignment.center,
+                            children: [
+                              ChoiceChip(
+                                label: Text('Yes', style: TextStyle(fontWeight: FontWeight.w500)),
+                                selected: phoneCondition == 'Yes',
+                                selectedColor: Colors.green.shade100,
+                                onSelected: (_) {
+                                  setState(() => phoneCondition = 'Yes');
+                                },
+                              ),
+                              ChoiceChip(
+                                label: Text('No', style: TextStyle(fontWeight: FontWeight.w500)),
+                                selected: phoneCondition == 'No',
+                                selectedColor: Colors.red.shade100,
+                                onSelected: (_) {
+                                  setState(() {
+                                    phoneCondition = 'No';
+                                    Future.delayed(Duration(milliseconds: 300), () {
+                                      _scrollController.animateTo(
+                                        _scrollController.position.maxScrollExtent,
+                                        duration: Duration(milliseconds: 400),
+                                        curve: Curves.easeOut,
+                                      );
+                                      FocusScope.of(context).requestFocus(_explanationFocusNode);
+                                    });
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (phoneCondition == 'No') ...[
+                          SizedBox(height: 20),
+                          TextFormField(
+                            controller: _explanationController,
+                            focusNode: _explanationFocusNode,
+                            decoration: InputDecoration(
+                              labelText: '問題を説明してください',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              filled: true,
+                              fillColor: Colors.grey.shade50,
+                            ),
+                            maxLines: 3,
+                            validator: (value) {
+                              if (phoneCondition == 'No' &&
+                                  (value == null || value.trim().isEmpty)) {
+                                return '説明を提供してください';
+                              }
+                              return null;
                             },
                           ),
                         ],
-                      ),
-                      if (phoneCondition == 'Not Good') ...[
-                        SizedBox(height: 20),
-                        TextFormField(
-                          controller: _explanationController,
-                          decoration: InputDecoration(
-                            labelText: '問題を説明してください',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          maxLines: 3,
-                          validator: (value) {
-                            if (phoneCondition == 'Not Good' &&
-                                (value == null || value.trim().isEmpty)) {
-                              return '説明を提供してください';
-                            }
-                            return null;
-                          },
-                        ),
+                        SizedBox(height: 8),
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
               actions: <Widget>[
                 TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(null); // Cancelled
-                  },
-                  child: Text('キャンセル'),
+                  onPressed: () => Navigator.of(context).pop(null),
+                  child: Text('キャンセル', style: TextStyle(color: Colors.grey.shade700)),
                 ),
-                TextButton(
-                  onPressed: () {
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: () async {
                     if (phoneCondition == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('電話の状態を選択してください')),
-                      );
+                      final contextChoice = _choiceChipsKey.currentContext;
+                      if (contextChoice != null) {
+                        await Scrollable.ensureVisible(
+                          contextChoice,
+                          duration: Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      }
+                      _shakeController.forward(from: 0);
                       return;
                     }
 
-                    if (phoneCondition == 'Not Good' && !_formKey.currentState!.validate()) {
+                    if (phoneCondition == 'No' && !_formKey.currentState!.validate()) {
                       return;
                     }
 
-                    String finalCondition = phoneCondition!;
-                    if (phoneCondition == 'Not Good') {
-                      finalCondition = 'Not Good: ${_explanationController.text.trim()}';
-                    }
+                    String finalCondition = phoneCondition == 'Yes'
+                        ? 'Good'
+                        : 'Not Good: ${_explanationController.text.trim()}';
 
                     Navigator.of(context).pop({'phoneCondition': finalCondition});
                   },
-                  child: Text('送信'),
+                  child: Text('確認'),
                 ),
               ],
             );
@@ -448,111 +528,234 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     String? phoneCondition;
     final TextEditingController _explanationController = TextEditingController();
     final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+    final ScrollController _scrollController = ScrollController();
+    final FocusNode _explanationFocusNode = FocusNode();
+
+    final GlobalKey _choiceChipsKey = GlobalKey();
+
+    final currentDate = DateFormat('MMMM d, y').format(DateTime.now());
+
+    Map<String, dynamic> shiftTimeInfo = {};
+    Map<String, dynamic> outputToday = {'totalCount': 0, 'totalQty': 0};
+
+    try {
+      if (_currentIdNumber != null) {
+        setState(() => _isLoading = true);
+        shiftTimeInfo = await _apiService.getShiftTimeInfo(_currentIdNumber!);
+        outputToday = await _apiService.getOutputToday(_currentIdNumber!);
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      print("データの取得中にエラーが発生しました: $e");
+    }
 
     return showDialog<Map<String, String>?>(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final dialogWidth = screenWidth * 0.95 > 480 ? 480.0 : screenWidth * 0.95;
+
         return StatefulBuilder(
           builder: (context, setState) {
+            final AnimationController _shakeController = AnimationController(
+              duration: Duration(milliseconds: 400),
+              vsync: Navigator.of(context),
+            );
+
+            final Animation<double> _offsetAnimation = TweenSequence<double>([
+              TweenSequenceItem(tween: Tween(begin: 0.0, end: -8.0), weight: 1),
+              TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
+              TweenSequenceItem(tween: Tween(begin: 8.0, end: -8.0), weight: 2),
+              TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
+              TweenSequenceItem(tween: Tween(begin: 8.0, end: 0.0), weight: 1),
+            ]).animate(_shakeController);
+
             return AlertDialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              titlePadding: EdgeInsets.zero,
-              contentPadding: EdgeInsets.all(20),
-              actionsPadding: EdgeInsets.only(right: 16, bottom: 12),
-              title: Column(
-                children: [
-                  SizedBox(height: 16),
-                  Image.asset(
-                    'assets/images/phonewarn.png',
-                    height: 60,
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    '電話の状態チェック',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              content: Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        '警備員に渡す前に、電話に問題や損傷がないことを正直に確認しますか？',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.red,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      SizedBox(height: 20),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          ChoiceChip(
-                            label: Text('はい'),
-                            selected: phoneCondition == 'Yes',
-                            onSelected: (_) {
-                              setState(() {
-                                phoneCondition = 'Yes';
-                              });
-                            },
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              contentPadding: EdgeInsets.all(24),
+              actionsPadding: EdgeInsets.only(right: 16, bottom: 16),
+              content: Container(
+                width: dialogWidth,
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    controller: _scrollController,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        if (_currentIdNumber != null &&
+                            (_profilePictureUrl != null || _firstName != null || _surName != null))
+                          Column(
+                            children: [
+                              if (_profilePictureUrl != null)
+                                CircleAvatar(
+                                  radius: 35,
+                                  backgroundImage: NetworkImage(_profilePictureUrl!),
+                                  backgroundColor: Colors.grey[300],
+                                ),
+                              SizedBox(height: 10),
+                              if (_firstName != null && _surName != null)
+                                Text(
+                                  '$_firstName $_surName',
+                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+                                  textAlign: TextAlign.center,
+                                ),
+                              SizedBox(height: 4),
+                              Text(
+                                currentDate,
+                                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                              ),
+                              SizedBox(height: 20),
+
+                              _buildInfoCard(
+                                title: '今日の成果',
+                                content: Column(
+                                  children: [
+                                    _buildInfoRow('アイテム数', outputToday['totalCount'].toString()),
+                                    SizedBox(height: 8),
+                                    _buildInfoRow('アイテム数量', outputToday['totalQty'].toString()),
+                                  ],
+                                ),
+                                backgroundColor: Colors.indigo.shade50,
+                                titleColor: Colors.indigo.shade800,
+                                centerTitle: true,
+                              ),
+                              SizedBox(height: 16),
+
+                              if (shiftTimeInfo.isNotEmpty)
+                                _buildInfoCard(
+                                  title: 'タイムログ',
+                                  content: Column(
+                                    children: [
+                                      _buildTimeRow('出勤時間', shiftTimeInfo['timeIn'] ?? '該当なし'),
+                                      SizedBox(height: 8),
+                                      _buildTimeRow('ログイン', shiftTimeInfo['loginTime'] ?? '該当なし'),
+                                    ],
+                                  ),
+                                  backgroundColor: Colors.grey.shade100,
+                                  titleColor: Colors.grey.shade800,
+                                  centerTitle: true,
+                                ),
+                              SizedBox(height: 24),
+                            ],
                           ),
-                          ChoiceChip(
-                            label: Text('いいえ'),
-                            selected: phoneCondition == 'No',
-                            onSelected: (_) {
-                              setState(() {
-                                phoneCondition = 'No';
-                              });
+                        Container(
+                          padding: EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.amber.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.warning_amber_rounded, color: Colors.amber.shade900),
+                              SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  '警備員に渡す前に、電話に問題がないことを確認しましたか？',
+                                  style: TextStyle(
+                                    color: Colors.amber.shade900,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 20),
+
+                        AnimatedBuilder(
+                          animation: _shakeController,
+                          builder: (context, child) {
+                            return Transform.translate(
+                              offset: Offset(_offsetAnimation.value, 0),
+                              child: child,
+                            );
+                          },
+                          child: Wrap(
+                            key: _choiceChipsKey,
+                            spacing: 12,
+                            alignment: WrapAlignment.center,
+                            children: [
+                              ChoiceChip(
+                                label: Text('Yes'),
+                                selected: phoneCondition == 'Yes',
+                                selectedColor: Colors.green.shade100,
+                                onSelected: (_) {
+                                  setState(() => phoneCondition = 'Yes');
+                                },
+                              ),
+                              ChoiceChip(
+                                label: Text('No'),
+                                selected: phoneCondition == 'No',
+                                selectedColor: Colors.red.shade100,
+                                onSelected: (_) {
+                                  setState(() {
+                                    phoneCondition = 'No';
+                                    Future.delayed(Duration(milliseconds: 300), () {
+                                      _scrollController.animateTo(
+                                        _scrollController.position.maxScrollExtent,
+                                        duration: Duration(milliseconds: 400),
+                                        curve: Curves.easeOut,
+                                      );
+                                      FocusScope.of(context).requestFocus(_explanationFocusNode);
+                                    });
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        if (phoneCondition == 'No') ...[
+                          SizedBox(height: 20),
+                          TextFormField(
+                            controller: _explanationController,
+                            focusNode: _explanationFocusNode,
+                            decoration: InputDecoration(
+                              labelText: '問題を説明してください',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            maxLines: 3,
+                            validator: (value) {
+                              if (phoneCondition == 'No' &&
+                                  (value == null || value.trim().isEmpty)) {
+                                return '説明を提供してください';
+                              }
+                              return null;
                             },
                           ),
                         ],
-                      ),
-                      if (phoneCondition == 'No') ...[
-                        SizedBox(height: 20),
-                        TextFormField(
-                          controller: _explanationController,
-                          decoration: InputDecoration(
-                            labelText: '問題を説明してください',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                          maxLines: 3,
-                          validator: (value) {
-                            if (phoneCondition == 'No' &&
-                                (value == null || value.trim().isEmpty)) {
-                              return '説明を提供してください';
-                            }
-                            return null;
-                          },
-                        ),
                       ],
-                    ],
+                    ),
                   ),
                 ),
               ),
               actions: <Widget>[
                 TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop(null); // Cancelled
-                  },
+                  onPressed: () => Navigator.of(context).pop(null),
                   child: Text('キャンセル'),
                 ),
-                TextButton(
-                  onPressed: () {
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blueAccent,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  onPressed: () async {
                     if (phoneCondition == null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('オプションを選択してください')),
-                      );
+                      final contextChoice = _choiceChipsKey.currentContext;
+                      if (contextChoice != null) {
+                        await Scrollable.ensureVisible(
+                          contextChoice,
+                          duration: Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      }
+                      _shakeController.forward(from: 0);
                       return;
                     }
 
@@ -566,7 +769,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
 
                     Navigator.of(context).pop({'phoneConditionOut': finalCondition});
                   },
-                  child: Text('送信'),
+                  child: Text('確認'),
                 ),
               ],
             );
@@ -575,6 +778,66 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       },
     );
   }
+
+  Widget _buildTimeRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(fontWeight: FontWeight.w500)),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.blueGrey,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(fontWeight: FontWeight.w500)),
+        Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+      ],
+    );
+  }
+
+  Widget _buildInfoCard({
+    required String title,
+    required Widget content,
+    required Color backgroundColor,
+    required Color titleColor,
+    bool centerTitle = false,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment:
+        centerTitle ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: titleColor,
+            ),
+          ),
+          SizedBox(height: 12),
+          content,
+        ],
+      ),
+    );
+  }
+
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
@@ -585,9 +848,13 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         // First check for active login before proceeding
         final activeLoginCheck = await _apiService.checkActiveLogin(_idController.text);
         if (activeLoginCheck["hasActiveLogin"] == true) {
-          String phoneName = activeLoginCheck["phoneName"] ?? "another device";
+          String deviceInfo = activeLoginCheck["phoneName"] ?? activeLoginCheck["deviceID"] ?? "another device";
+          ScaffoldMessenger.of(context).removeCurrentSnackBar(); // Remove any existing snackbar
           ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('$phoneName でアクティブなログインセッションがあります')),
+            SnackBar(
+              content: Text('$deviceInfo にアクティブなログインセッションがあります'),
+              behavior: SnackBarBehavior.fixed, // Optional: prevents floating behavior
+            ),
           );
           setState(() {
             _isLoading = false;
@@ -644,7 +911,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                   title = "再ログイン";
                   message = "再ログインしました";
                 } else {
-                  title = "遅れてログイン";
+                  title = "遅刻ログイン";
                   message = wtrResponse['lateMessage'] ?? "シフトに遅れています";
                 }
 
@@ -654,7 +921,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(),
-                      child: Text("了解"),
+                      child: Text("OK"),
                     ),
                   ],
                 );
@@ -663,15 +930,17 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
           });
         }
 
-        String successMessage = 'ID: $actualIdNumber で正常にログインしました';
+        String successMessage = '$actualIdNumber で正常にログインしました';
         if (wtrResponse['updated'] == true) {
-          successMessage = 'デバイス情報で既存のWTRレコードを正常に更新しました';
+          successMessage = '既存のWTRレコードがデバイス情報で正常に更新されました';
         }
 
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(successMessage)),
         );
       } catch (e) {
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
         );
@@ -683,7 +952,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     }
   }
   Future<void> _logout() async {
-    final exemptedIds = ['1238', '1243', '0939', '1163', '1239', '1288', '1200'];
+    final exemptedIds = ['1243', '0939', '1163', '1239', '1288', '1238'];
     final isExempted = exemptedIds.contains(_currentIdNumber);
 
     // Only show QR scanner for non exempted users
@@ -721,7 +990,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
             context: context,
             builder: (BuildContext context) {
               return AlertDialog(
-                title: const Text("早退"),
+                title: const Text("早退ログアウト"),
                 content: Text("あなたのシフトは${confirmResult["shiftOut"]}に終了します。今すぐログアウトしてもよろしいですか？"),
                 actions: [
                   TextButton(
@@ -730,7 +999,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                   ),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text("それでもログアウト"),
+                    child: const Text("強制的にログアウト"),
                   ),
                 ],
               );
@@ -744,7 +1013,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
               context: context,
               builder: (BuildContext context) {
                 return AlertDialog(
-                  title: const Text("ログアウト確認"),
+                  title: const Text("ログアウトの確認"),
                   content: const Text("本当にログアウトしてもよろしいですか？"),
                   actions: [
                     TextButton(
@@ -785,8 +1054,9 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
           // Check if this was an undertime logout
           if (logoutResult["isUndertime"] == true) {
             // Show undertime message
+            ScaffoldMessenger.of(context).removeCurrentSnackBar();
             ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('シフト終了前にログアウトしました')),
+              const SnackBar(content: Text('シフト終了前にログアウトしました')),
             );
           }
         }
@@ -802,9 +1072,9 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
           _currentIdNumber = null;
           _idController.clear();
         });
-
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('正常にログアウトしました')),
+          const SnackBar(content: Text('正常にログアウトしました')),
         );
       } catch (e) {
         // Error handling
@@ -817,7 +1087,6 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       // Error handling
     }
   }
-
 
   Future<bool?> _showQrScanner() async {
     _qrErrorMessage = null; // Reset error message
@@ -839,7 +1108,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Text(
-                      "ログアウト用QRコードをスキャン",
+                      "ログアウトするためにQRコードをスキャンしてください",
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -893,7 +1162,6 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       },
     );
   }
-
   String xorDecrypt(String base64Data, String key) {
     final decodedBytes = base64.decode(base64Data);
     final keyBytes = utf8.encode(key);
@@ -923,17 +1191,16 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
           qrController?.dispose();
         } else {
           setState(() {
-            _qrErrorMessage = '無効なQRコードのデータです';
+            _qrErrorMessage = '無効なQRコードデータ';
           });
         }
       } catch (e) {
         setState(() {
-          _qrErrorMessage = 'QRコードの読み取りに失敗しました';
+          _qrErrorMessage = 'QRコードのデコードに失敗しました';
         });
       }
     });
   }
-
 
   Future<String> _getDeviceId() async {
     try {
@@ -1078,7 +1345,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                           child: Column(
                             children: [
                               Text(
-                                'ARK LOG JP',
+                                _phoneName,
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 24,
@@ -1304,7 +1571,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                     child: Column(
                       children: [
                         Text(
-                          _isLoggedIn ? 'ようこそ ${_firstName ?? ""}さん' : 'ID番号を入力してください',
+                          _isLoggedIn ? 'ようこそ ${_firstName ?? ""}' : 'ID番号を入力してください',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 24,
@@ -1392,7 +1659,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                                 if (_latestTimeIn != null) ...[
                                   const SizedBox(height: 4),
                                   Text(
-                                    '最終ログイン: $_latestTimeIn',
+                                    '前回のログイン: $_latestTimeIn',
                                     style: TextStyle(
                                       color: Colors.grey[600],
                                       fontSize: 13,
