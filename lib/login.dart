@@ -316,6 +316,8 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     final ScrollController _scrollController = ScrollController();
     final FocusNode _explanationFocusNode = FocusNode();
 
+    final GlobalKey _choiceChipsKey = GlobalKey();
+
     return showDialog<Map<String, String>?>(
       context: context,
       barrierDismissible: false,
@@ -325,6 +327,19 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 
         return StatefulBuilder(
           builder: (context, setState) {
+            final AnimationController _shakeController = AnimationController(
+              duration: Duration(milliseconds: 400),
+              vsync: Navigator.of(context),
+            );
+
+            final Animation<double> _offsetAnimation = TweenSequence<double>([
+              TweenSequenceItem(tween: Tween(begin: 0.0, end: -8.0), weight: 1),
+              TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
+              TweenSequenceItem(tween: Tween(begin: 8.0, end: -8.0), weight: 2),
+              TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
+              TweenSequenceItem(tween: Tween(begin: 8.0, end: 0.0), weight: 1),
+            ]).animate(_shakeController);
+
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               contentPadding: EdgeInsets.all(24),
@@ -370,7 +385,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                               SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Are you sure the phone has no issues or damage before using it? Please be honest — every entry is recorded in the system, and you don’t want to be held responsible for any existing problems.',
+                                  'Are you sure the phone has no issues or damage before using it? Please be honest — every entry is recorded in the system, and you don\'t want to be held responsible for any existing problems.',
                                   style: TextStyle(
                                     color: Colors.amber.shade900,
                                     fontWeight: FontWeight.w600,
@@ -381,39 +396,49 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                           ),
                         ),
                         SizedBox(height: 20),
-                        Wrap(
-                          spacing: 12,
-                          alignment: WrapAlignment.center,
-                          children: [
-                            ChoiceChip(
-                              label: Text('Good', style: TextStyle(fontWeight: FontWeight.w500)),
-                              selected: phoneCondition == 'Good',
-                              selectedColor: Colors.green.shade100,
-                              onSelected: (_) {
-                                setState(() => phoneCondition = 'Good');
-                              },
-                            ),
-                            ChoiceChip(
-                              label: Text('Not Good', style: TextStyle(fontWeight: FontWeight.w500)),
-                              selected: phoneCondition == 'Not Good',
-                              selectedColor: Colors.red.shade100,
-                              onSelected: (_) {
-                                setState(() {
-                                  phoneCondition = 'Not Good';
-                                  Future.delayed(Duration(milliseconds: 300), () {
-                                    _scrollController.animateTo(
-                                      _scrollController.position.maxScrollExtent,
-                                      duration: Duration(milliseconds: 400),
-                                      curve: Curves.easeOut,
-                                    );
-                                    FocusScope.of(context).requestFocus(_explanationFocusNode);
+                        AnimatedBuilder(
+                          animation: _shakeController,
+                          builder: (context, child) {
+                            return Transform.translate(
+                              offset: Offset(_offsetAnimation.value, 0),
+                              child: child,
+                            );
+                          },
+                          child: Wrap(
+                            key: _choiceChipsKey,
+                            spacing: 12,
+                            alignment: WrapAlignment.center,
+                            children: [
+                              ChoiceChip(
+                                label: Text('Yes', style: TextStyle(fontWeight: FontWeight.w500)),
+                                selected: phoneCondition == 'Yes',
+                                selectedColor: Colors.green.shade100,
+                                onSelected: (_) {
+                                  setState(() => phoneCondition = 'Yes');
+                                },
+                              ),
+                              ChoiceChip(
+                                label: Text('No', style: TextStyle(fontWeight: FontWeight.w500)),
+                                selected: phoneCondition == 'No',
+                                selectedColor: Colors.red.shade100,
+                                onSelected: (_) {
+                                  setState(() {
+                                    phoneCondition = 'No';
+                                    Future.delayed(Duration(milliseconds: 300), () {
+                                      _scrollController.animateTo(
+                                        _scrollController.position.maxScrollExtent,
+                                        duration: Duration(milliseconds: 400),
+                                        curve: Curves.easeOut,
+                                      );
+                                      FocusScope.of(context).requestFocus(_explanationFocusNode);
+                                    });
                                   });
-                                });
-                              },
-                            ),
-                          ],
+                                },
+                              ),
+                            ],
+                          ),
                         ),
-                        if (phoneCondition == 'Not Good') ...[
+                        if (phoneCondition == 'No') ...[
                           SizedBox(height: 20),
                           TextFormField(
                             controller: _explanationController,
@@ -428,7 +453,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                             ),
                             maxLines: 3,
                             validator: (value) {
-                              if (phoneCondition == 'Not Good' &&
+                              if (phoneCondition == 'No' &&
                                   (value == null || value.trim().isEmpty)) {
                                 return 'Please provide an explanation';
                               }
@@ -455,24 +480,27 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  onPressed: () {
+                  onPressed: () async {
                     if (phoneCondition == null) {
-                      ScaffoldMessenger.of(context).removeCurrentSnackBar();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Please select phone condition')),
-                      );
+                      final contextChoice = _choiceChipsKey.currentContext;
+                      if (contextChoice != null) {
+                        await Scrollable.ensureVisible(
+                          contextChoice,
+                          duration: Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                        );
+                      }
+                      _shakeController.forward(from: 0);
                       return;
                     }
 
-                    if (phoneCondition == 'Not Good' &&
-                        !_formKey.currentState!.validate()) {
+                    if (phoneCondition == 'No' && !_formKey.currentState!.validate()) {
                       return;
                     }
 
-                    String finalCondition = phoneCondition!;
-                    if (phoneCondition == 'Not Good') {
-                      finalCondition = 'Not Good: ${_explanationController.text.trim()}';
-                    }
+                    String finalCondition = phoneCondition == 'Yes'
+                        ? 'Good'
+                        : 'Not Good: ${_explanationController.text.trim()}';
 
                     Navigator.of(context).pop({'phoneCondition': finalCondition});
                   },
@@ -486,6 +514,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     );
   }
 
+
   Future<Map<String, String>?> _showPhoneConditionDialogOut() async {
     String? phoneCondition;
     final TextEditingController _explanationController = TextEditingController();
@@ -493,10 +522,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     final ScrollController _scrollController = ScrollController();
     final FocusNode _explanationFocusNode = FocusNode();
 
-    final GlobalKey _choiceChipsKey = GlobalKey(); // 🔑 For scrolling to ChoiceChips
-
-    late final AnimationController _shakeController;
-    late final Animation<double> _offsetAnimation;
+    final GlobalKey _choiceChipsKey = GlobalKey();
 
     final currentDate = DateFormat('MMMM d, y').format(DateTime.now());
 
@@ -519,17 +545,17 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final dialogWidth = screenWidth * 0.95 > 480 ? 480.0 : screenWidth * 0.95;
+
         return StatefulBuilder(
           builder: (context, setState) {
-            final screenWidth = MediaQuery.of(context).size.width;
-            final dialogWidth = screenWidth * 0.95 > 480 ? 480.0 : screenWidth * 0.95;
-
-            _shakeController = AnimationController(
+            final AnimationController _shakeController = AnimationController(
               duration: Duration(milliseconds: 400),
               vsync: Navigator.of(context),
             );
 
-            _offsetAnimation = TweenSequence<double>([
+            final Animation<double> _offsetAnimation = TweenSequence<double>([
               TweenSequenceItem(tween: Tween(begin: 0.0, end: -8.0), weight: 1),
               TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
               TweenSequenceItem(tween: Tween(begin: 8.0, end: -8.0), weight: 2),
@@ -639,7 +665,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                             );
                           },
                           child: Wrap(
-                            key: _choiceChipsKey, // 👈 Apply the key here
+                            key: _choiceChipsKey,
                             spacing: 12,
                             alignment: WrapAlignment.center,
                             children: [
@@ -712,7 +738,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                   ),
                   onPressed: () async {
                     if (phoneCondition == null) {
-                      // 👇 Scroll into view before shaking
                       final contextChoice = _choiceChipsKey.currentContext;
                       if (contextChoice != null) {
                         await Scrollable.ensureVisible(
