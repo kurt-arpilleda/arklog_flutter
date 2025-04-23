@@ -1109,7 +1109,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                   children: [
                     const Center(
                       child: Text(
-                        "Scan the QR code at the guardhouse to log out.",
+                        "Scan the QR code to the IT Office to log out.",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
