@@ -1107,11 +1107,14 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      "ログアウトするためにQRコードをスキャンしてください",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    const Center(
+                      child: Text(
+                        "ガードハウスでQRコードをスキャンしてログアウトしてください。",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                     const SizedBox(height: 16),

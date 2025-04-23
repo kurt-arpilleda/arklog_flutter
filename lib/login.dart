@@ -952,7 +952,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     }
   }
   Future<void> _logout() async {
-    final exemptedIds = ['1243', '0939', '1163', '1239', '1288', '1238'];
+    final exemptedIds = ['1243', '0939', '1163', '1239', '1288', '12d38'];
     final isExempted = exemptedIds.contains(_currentIdNumber);
 
     // Only show QR scanner for non exempted users
@@ -1107,11 +1107,14 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Text(
-                      "Scan QR Code to Logout",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    const Center(
+                      child: Text(
+                        "Scan the QR code at the guardhouse to log out.",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                     const SizedBox(height: 16),
