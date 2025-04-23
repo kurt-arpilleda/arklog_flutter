@@ -92,7 +92,7 @@ class _PhOrJpScreenState extends State<PhOrJpScreen> with WidgetsBindingObserver
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      backgroundColor: Colors.black.withOpacity(0.5), // Dimmed background
       body: Center(
         child: Dialog(
           shape: RoundedRectangleBorder(
@@ -105,6 +105,13 @@ class _PhOrJpScreenState extends State<PhOrJpScreen> with WidgetsBindingObserver
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 10,
+                  spreadRadius: 2,
+                ),
+              ],
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -175,10 +182,6 @@ class _PhOrJpScreenState extends State<PhOrJpScreen> with WidgetsBindingObserver
                   ],
                 ),
                 const SizedBox(height: 20),
-                Text(
-                  'Select your country',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
               ],
             ),
           ),
