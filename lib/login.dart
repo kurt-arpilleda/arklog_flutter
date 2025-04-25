@@ -87,7 +87,9 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       await _initializeDeviceId();
       await _loadCurrentLanguage();
       await _loadPhOrJp();
-      await AutoUpdate.checkForUpdate(context);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        AutoUpdate.checkForUpdate(context);
+      });
 
       // Reset the exclusive user flag to false by default
       bool wasExclusive = _isExclusiveUser;
@@ -1109,7 +1111,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                   children: [
                     const Center(
                       child: Text(
-                        "Scan the QR code at the IT Office to log out.",
+                        "Scan the QR code at the Guard House to log out and charge the device in the charging station",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
