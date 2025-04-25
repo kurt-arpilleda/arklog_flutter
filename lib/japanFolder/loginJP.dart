@@ -48,6 +48,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   Timer? _timer;
   bool _isExclusiveUser = false;
   String _phoneName = 'ARK LOG JP';
+  bool _isFlashOn = false;
   @override
   void initState() {
     super.initState();
@@ -1090,6 +1091,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
 
   Future<bool?> _showQrScanner() async {
     _qrErrorMessage = null; // Reset error message
+    _isFlashOn = false;     // Reset flash icon initially
 
     return await showDialog<bool>(
       context: context,
@@ -1109,7 +1111,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                   children: [
                     const Center(
                       child: Text(
-                        "ガードハウスでQRコードをスキャンしてログアウトしてください。",
+                        "ログアウトするには守衛所でQRコードをスキャンしてください",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -1149,12 +1151,39 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                         ),
                       ),
                     const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop(false);
-                        qrController?.dispose();
-                      },
-                      child: const Text("キャンセル"),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(child: Container()), // Spacer
+                        IconButton(
+                          icon: Icon(
+                            Icons.highlight, // or use Icons.flashlight_on if you're on Material 3
+                            color: _isFlashOn ? Colors.amber : Colors.grey,
+                            size: 36, // Increased size
+                          ),
+                          onPressed: () async {
+                            if (qrController != null) {
+                              await qrController?.toggleFlash();
+                              setState(() {
+                                _isFlashOn = !_isFlashOn;
+                              });
+                            }
+                          },
+                        ),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                _isFlashOn = false; // Reset flash icon
+                                Navigator.of(context).pop(false);
+                                qrController?.dispose();
+                              },
+                              child: const Text("Cancel"),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -1163,7 +1192,10 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
           },
         );
       },
-    );
+    ).then((value) {
+      _isFlashOn = false; // Also reset after dialog closes in any way
+      return value;
+    });
   }
   String xorDecrypt(String base64Data, String key) {
     final decodedBytes = base64.decode(base64Data);
