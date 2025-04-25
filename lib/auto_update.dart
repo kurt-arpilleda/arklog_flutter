@@ -8,6 +8,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:open_file/open_file.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 class AutoUpdate {
   static const List<String> apiUrls = [
@@ -18,7 +19,7 @@ class AutoUpdate {
   static const String versionPath = "V4/Others/Kurt/LatestVersionAPK/ArkLog/version.json";
   static const String apkPath = "V4/Others/Kurt/LatestVersionAPK/ArkLog/arkLog.apk";
 
-  static const Duration requestTimeout = Duration(seconds: 3);
+  static const Duration requestTimeout = Duration(seconds: 2);
   static const int maxRetries = 6;
   static const Duration initialRetryDelay = Duration(seconds: 1);
 
@@ -58,6 +59,9 @@ class AutoUpdate {
   }
 
   static Future<void> _showAutomaticUpdateDialog(BuildContext context, String versionName, String releaseNotes, String apiUrl) async {
+    // Enable wakelock when update dialog is shown
+    await WakelockPlus.enable();
+
     showDialog(
       context: context,
       barrierDismissible: false, // Prevent closing by tapping outside
@@ -131,7 +135,10 @@ class AutoUpdate {
           ),
         );
       },
-    );
+    ).then((_) {
+      // Disable wakelock when dialog is dismissed
+      WakelockPlus.disable();
+    });
   }
 
   static Stream<int> _downloadAndInstallApk(BuildContext context, String apiUrl) async* {
@@ -227,3 +234,4 @@ class AutoUpdate {
     }
   }
 }
+
