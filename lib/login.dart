@@ -1112,7 +1112,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                   children: [
                     const Center(
                       child: Text(
-                        "Scan the QR code at the Guard House to log out and charge the device in the charging station",
+                        "Scan the QR code at the Guard House to log out",
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
@@ -1158,8 +1158,9 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                         Expanded(child: Container()), // Spacer
                         IconButton(
                           icon: Icon(
-                            Icons.flash_on,
+                            Icons.highlight, // or use Icons.flashlight_on if you're on Material 3
                             color: _isFlashOn ? Colors.amber : Colors.grey,
+                            size: 36, // Increased size
                           ),
                           onPressed: () async {
                             if (qrController != null) {
