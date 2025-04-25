@@ -47,6 +47,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   String? _qrErrorMessage;
   Timer? _timer;
   bool _isExclusiveUser = false;
+  bool _isFlashOn = false;
   String _phoneName = 'ARK LOG PH';
   @override
   void initState() {
@@ -954,7 +955,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     }
   }
   Future<void> _logout() async {
-    final exemptedIds = ['1243', '0939', '1163', '1239', '1288', '1238'];
+    final exemptedIds = ['1243', '0939', '1163', '1239', '1288', '123s8'];
     final isExempted = exemptedIds.contains(_currentIdNumber);
 
     // Only show QR scanner for non exempted users
@@ -977,7 +978,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     try {
       // First check if there are any active WTR sessions
       final activeSessionsCheck = await _apiService.checkActiveWTR(_currentIdNumber!);
-
       // Only proceed with confirm logout if there are active sessions
       if (activeSessionsCheck["hasActiveSessions"] == true) {
         // Call the confirmLogoutWTR API to check if the user is trying to log out before shift end
@@ -1092,6 +1092,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 
   Future<bool?> _showQrScanner() async {
     _qrErrorMessage = null; // Reset error message
+    _isFlashOn = false;     // Reset flash icon initially
 
     return await showDialog<bool>(
       context: context,
@@ -1151,12 +1152,38 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                         ),
                       ),
                     const SizedBox(height: 16),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).pop(false);
-                        qrController?.dispose();
-                      },
-                      child: const Text("Cancel"),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(child: Container()), // Spacer
+                        IconButton(
+                          icon: Icon(
+                            Icons.flash_on,
+                            color: _isFlashOn ? Colors.amber : Colors.grey,
+                          ),
+                          onPressed: () async {
+                            if (qrController != null) {
+                              await qrController?.toggleFlash();
+                              setState(() {
+                                _isFlashOn = !_isFlashOn;
+                              });
+                            }
+                          },
+                        ),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                _isFlashOn = false; // Reset flash icon
+                                Navigator.of(context).pop(false);
+                                qrController?.dispose();
+                              },
+                              child: const Text("Cancel"),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
@@ -1165,8 +1192,12 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           },
         );
       },
-    );
+    ).then((value) {
+      _isFlashOn = false; // Also reset after dialog closes in any way
+      return value;
+    });
   }
+
   String xorDecrypt(String base64Data, String key) {
     final decodedBytes = base64.decode(base64Data);
     final keyBytes = utf8.encode(key);
