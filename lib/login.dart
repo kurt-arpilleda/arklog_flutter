@@ -88,9 +88,12 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       await _initializeDeviceId();
       await _loadCurrentLanguage();
       await _loadPhOrJp();
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        AutoUpdate.checkForUpdate(context);
-      });
+
+      if (!AutoUpdate.isUpdating) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          AutoUpdate.checkForUpdate(context);
+        });
+      }
 
       // Reset the exclusive user flag to false by default
       bool wasExclusive = _isExclusiveUser;
