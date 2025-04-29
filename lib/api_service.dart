@@ -541,7 +541,7 @@ class ApiService {
       for (int i = 0; i < apiUrls.length; i++) {
         String apiUrl = apiUrls[i];
         try {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLinkAPI/kurt_fetchManualLink.php?linkID=$linkID");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchManualLink.php?linkID=$linkID");
           final response = await http.get(uri).timeout(requestTimeout);
 
           if (response.statusCode == 200) {
