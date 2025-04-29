@@ -170,7 +170,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   Future<void> _loadCurrentLanguage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _currentLanguage = prefs.getString('language') ?? 'ja'; // Default to 'en'
+      _currentLanguage = prefs.getString('languageJP') ?? 'ja'; // Default to 'en'
     });
   }
 
@@ -183,7 +183,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
 
   Future<void> _updateLanguage(String language) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    await prefs.setString('languagejp', language);
+    await prefs.setString('languageJP', language);
     setState(() {
       _currentLanguage = language;
     });
@@ -1399,7 +1399,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                           child: Row(
                             children: [
                               Text(
-                                "Language",
+                                "言語",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -1471,11 +1471,11 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                         ),
                         SizedBox(height: 20),
                         Padding(
-                          padding: const EdgeInsets.only(left: 29.0),
+                          padding: const EdgeInsets.only(left: 46.0),
                           child: Row(
                             children: [
                               Text(
-                                "Manual",
+                                "手引き",
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -1494,7 +1494,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
 
                                     // Get the current language from shared preferences
                                     final prefs = await SharedPreferences.getInstance();
-                                    final language = prefs.getString('language') ?? 'en';
+                                    final language = prefs.getString('languageJP') ?? 'en';
 
                                     // Determine language flag (1 for English, 2 for Japanese)
                                     final languageFlag = language == 'ja' ? 2 : 1;
