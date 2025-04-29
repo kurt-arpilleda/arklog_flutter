@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
+import 'pdfViewer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'api_service.dart';
@@ -58,26 +59,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     _updateDateTime();
     _timer = Timer.periodic(Duration(seconds: 1), (Timer t) => _updateDateTime());
 
-  }
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      // App has come back to the foreground
-      _initializeApp(); // Re-run your init logic
-    }
-  }
-  void _updateDateTime() {
-    // Get Manila timezone
-    final manila = tz.getLocation('Asia/Manila');
-    final now = tz.TZDateTime.now(manila);
-
-    final formattedDate = DateFormat('MMMM dd, yyyy HH:mm:ss').format(now);
-
-    if (mounted) {
-      setState(() {
-        _currentDateTime = formattedDate;
-      });
-    }
   }
   Future<void> _initializeApp() async {
     try {
@@ -169,6 +150,26 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       });
     }
   }
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // App has come back to the foreground
+      _initializeApp(); // Re-run your init logic
+    }
+  }
+  void _updateDateTime() {
+    // Get Manila timezone
+    final manila = tz.getLocation('Asia/Manila');
+    final now = tz.TZDateTime.now(manila);
+
+    final formattedDate = DateFormat('MMMM dd, yyyy HH:mm:ss').format(now);
+
+    if (mounted) {
+      setState(() {
+        _currentDateTime = formattedDate;
+      });
+    }
+  }
 
   Future<void> _loadCurrentLanguage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -184,13 +185,13 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     });
   }
 
-  // Future<void> _updateLanguage(String language) async {
-  //   SharedPreferences prefs = await SharedPreferences.getInstance();
-  //   await prefs.setString('language', language);
-  //   setState(() {
-  //     _currentLanguage = language;
-  //   });
-  // }
+  Future<void> _updateLanguage(String language) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('language', language);
+    setState(() {
+      _currentLanguage = language;
+    });
+  }
 
   Future<void> _updatePhOrJp(String value) async {
     if ((value == 'ph' && _isCountryLoadingPh) || (value == 'jp' && _isCountryLoadingJp)) {
@@ -1395,59 +1396,59 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                             ],
                           ),
                         ),
-                        // SizedBox(height: 20),
-                        // Padding(
-                        //   padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        //   child: Row(
-                        //     children: [
-                        //       Text(
-                        //         "Language",
-                        //         style: TextStyle(
-                        //           fontSize: 16,
-                        //           fontWeight: FontWeight.bold,
-                        //         ),
-                        //       ),
-                        //       SizedBox(width: 25),
-                        //       GestureDetector(
-                        //         onTap: () => _updateLanguage('en'),
-                        //         child: Column(
-                        //           children: [
-                        //             Image.asset(
-                        //               'assets/images/americanFlag.gif',
-                        //               width: 40,
-                        //               height: 40,
-                        //             ),
-                        //             if (_currentLanguage == 'en')
-                        //               Container(
-                        //                 height: 2,
-                        //                 width: 40,
-                        //                 color: Colors.blue,
-                        //               ),
-                        //           ],
-                        //         ),
-                        //       ),
-                        //       SizedBox(width: 30),
-                        //       GestureDetector(
-                        //         onTap: () => _updateLanguage('ja'),
-                        //         child: Column(
-                        //           children: [
-                        //             Image.asset(
-                        //               'assets/images/japaneseFlag.gif',
-                        //               width: 40,
-                        //               height: 40,
-                        //             ),
-                        //             if (_currentLanguage == 'ja')
-                        //               Container(
-                        //                 height: 2,
-                        //                 width: 40,
-                        //                 color: Colors.blue,
-                        //               ),
-                        //           ],
-                        //         ),
-                        //       ),
-                        //     ],
-                        //   ),
-                        // ),
+                        SizedBox(height: 20),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Row(
+                            children: [
+                              Text(
+                                "Language",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(width: 25),
+                              GestureDetector(
+                                onTap: () => _updateLanguage('en'),
+                                child: Column(
+                                  children: [
+                                    Image.asset(
+                                      'assets/images/americanFlag.gif',
+                                      width: 40,
+                                      height: 40,
+                                    ),
+                                    if (_currentLanguage == 'en')
+                                      Container(
+                                        height: 2,
+                                        width: 40,
+                                        color: Colors.blue,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(width: 30),
+                              GestureDetector(
+                                onTap: () => _updateLanguage('ja'),
+                                child: Column(
+                                  children: [
+                                    Image.asset(
+                                      'assets/images/japaneseFlag.gif',
+                                      width: 40,
+                                      height: 40,
+                                    ),
+                                    if (_currentLanguage == 'ja')
+                                      Container(
+                                        height: 2,
+                                        width: 40,
+                                        color: Colors.blue,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         SizedBox(height: 20),
                         Padding(
                           padding: const EdgeInsets.only(left: 16.0),
@@ -1466,6 +1467,67 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                                 iconSize: 28,
                                 onPressed: () {
                                   _showInputMethodPicker();
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 20),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 29.0),
+                          child: Row(
+                            children: [
+                              Text(
+                                "Manual",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(width: 15),
+                              IconButton(
+                                icon: Icon(Icons.menu_book, size: 28),
+                                iconSize: 28,
+                                onPressed: () async {
+                                  try {
+                                    // Show loading indicator
+                                    setState(() {
+                                      _isLoading = true;
+                                    });
+
+                                    // Get the current language from shared preferences
+                                    final prefs = await SharedPreferences.getInstance();
+                                    final language = prefs.getString('language') ?? 'en';
+
+                                    // Determine language flag (1 for English, 2 for Japanese)
+                                    final languageFlag = language == 'ja' ? 2 : 1;
+
+                                    // Fetch the manual link (using linkID 10 as specified)
+                                    final pdfUrl = await _apiService.fetchManualLink(10, languageFlag);
+
+                                    // Open the PDF viewer
+                                    if (!mounted) return;
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => PDFViewerScreen(
+                                          pdfUrl: pdfUrl,
+                                          fileName: 'manual_${language == 'ja' ? 'jp' : 'en'}.pdf',
+                                          languageFlag: languageFlag,
+                                        ),
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    if (!mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Failed to open manual: ${e.toString()}')),
+                                    );
+                                  } finally {
+                                    if (!mounted) return;
+                                    setState(() {
+                                      _isLoading = false;
+                                    });
+                                  }
                                 },
                               ),
                             ],

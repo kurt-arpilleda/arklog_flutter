@@ -178,13 +178,13 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     });
   }
 
-  // Future<void> _updateLanguage(String language) async {
-  //   SharedPreferences prefs = await SharedPreferences.getInstance();
-  //   await prefs.setString('language', language);
-  //   setState(() {
-  //     _currentLanguage = language;
-  //   });
-  // }
+  Future<void> _updateLanguage(String language) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setString('languagejp', language);
+    setState(() {
+      _currentLanguage = language;
+    });
+  }
 
   Future<void> _updatePhOrJp(String value) async {
     if ((value == 'ph' && _isCountryLoadingPh) || (value == 'jp' && _isCountryLoadingJp)) {
@@ -1390,59 +1390,59 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                             ],
                           ),
                         ),
-                        // SizedBox(height: 20),
-                        // Padding(
-                        //   padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                        //   child: Row(
-                        //     children: [
-                        //       Text(
-                        //         "Language",
-                        //         style: TextStyle(
-                        //           fontSize: 16,
-                        //           fontWeight: FontWeight.bold,
-                        //         ),
-                        //       ),
-                        //       SizedBox(width: 25),
-                        //       GestureDetector(
-                        //         onTap: () => _updateLanguage('en'),
-                        //         child: Column(
-                        //           children: [
-                        //             Image.asset(
-                        //               'assets/images/americanFlag.gif',
-                        //               width: 40,
-                        //               height: 40,
-                        //             ),
-                        //             if (_currentLanguage == 'en')
-                        //               Container(
-                        //                 height: 2,
-                        //                 width: 40,
-                        //                 color: Colors.blue,
-                        //               ),
-                        //           ],
-                        //         ),
-                        //       ),
-                        //       SizedBox(width: 30),
-                        //       GestureDetector(
-                        //         onTap: () => _updateLanguage('ja'),
-                        //         child: Column(
-                        //           children: [
-                        //             Image.asset(
-                        //               'assets/images/japaneseFlag.gif',
-                        //               width: 40,
-                        //               height: 40,
-                        //             ),
-                        //             if (_currentLanguage == 'ja')
-                        //               Container(
-                        //                 height: 2,
-                        //                 width: 40,
-                        //                 color: Colors.blue,
-                        //               ),
-                        //           ],
-                        //         ),
-                        //       ),
-                        //     ],
-                        //   ),
-                        // ),
+                        SizedBox(height: 20),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Row(
+                            children: [
+                              Text(
+                                "Language",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(width: 25),
+                              GestureDetector(
+                                onTap: () => _updateLanguage('en'),
+                                child: Column(
+                                  children: [
+                                    Image.asset(
+                                      'assets/images/americanFlag.gif',
+                                      width: 40,
+                                      height: 40,
+                                    ),
+                                    if (_currentLanguage == 'en')
+                                      Container(
+                                        height: 2,
+                                        width: 40,
+                                        color: Colors.blue,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(width: 30),
+                              GestureDetector(
+                                onTap: () => _updateLanguage('ja'),
+                                child: Column(
+                                  children: [
+                                    Image.asset(
+                                      'assets/images/japaneseFlag.gif',
+                                      width: 40,
+                                      height: 40,
+                                    ),
+                                    if (_currentLanguage == 'ja')
+                                      Container(
+                                        height: 2,
+                                        width: 40,
+                                        color: Colors.blue,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                         SizedBox(height: 20),
                         Padding(
                           padding: const EdgeInsets.only(left: 16.0),
