@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
+import '../pdfViewer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../api_service.dart';
-import '../pdfViewer.dart';
 import 'api_serviceJP.dart';
+import '../api_service.dart';
 import 'package:unique_identifier/unique_identifier.dart';
 import 'package:http/http.dart' as http;
 import '../auto_update.dart';
@@ -50,8 +50,8 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   String? _qrErrorMessage;
   Timer? _timer;
   bool _isExclusiveUser = false;
-  String _phoneName = 'ARK LOG JP';
   bool _isFlashOn = false;
+  String _phoneName = 'ARK LOG JP';
   @override
   void initState() {
     super.initState();
@@ -62,27 +62,6 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     _timer = Timer.periodic(Duration(seconds: 1), (Timer t) => _updateDateTime());
 
   }
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      // App has come back to the foreground
-      _initializeApp(); // Re-run your init logic
-    }
-  }
-  void _updateDateTime() {
-    // Get Tokyo timezone
-    final tokyo = tz.getLocation('Asia/Tokyo');
-    final now = tz.TZDateTime.now(tokyo);
-
-    final formattedDate = DateFormat('MMMM dd, yyyy HH:mm:ss').format(now);
-
-    if (mounted) {
-      setState(() {
-        _currentDateTime = formattedDate;
-      });
-    }
-  }
-
   Future<void> _initializeApp() async {
     try {
       setState(() {
@@ -92,7 +71,12 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       await _initializeDeviceId();
       await _loadCurrentLanguage();
       await _loadPhOrJp();
-      await AutoUpdate.checkForUpdate(context);
+
+      if (!AutoUpdate.isUpdating) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          AutoUpdate.checkForUpdate(context);
+        });
+      }
 
       // Reset the exclusive user flag to false by default
       bool wasExclusive = _isExclusiveUser;
@@ -106,7 +90,8 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
             _phoneName = fetchedPhoneName;
           });
         } catch (e) {
-          debugPrint("電話名の取得中にエラーが発生しました: $e");
+          debugPrint("Error fetching phone name: $e");
+          // Continue with default name if fetch fails
         }
       }
       // Check for exclusive login
@@ -153,20 +138,40 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
             });
           }
         } catch (e) {
-          debugPrint("排他的ログインチェックに失敗しました: $e");
+          debugPrint("Exclusive login check failed: $e");
+          // Continue with normal flow if exclusive check fails
         }
         // Normal flow if not exclusive user
         await _loadLastIdNumber();
       }
     } catch (e) {
-      debugPrint("アプリの初期化中にエラーが発生しました: $e");
+      debugPrint("Error initializing app: $e");
     } finally {
       setState(() {
         _isInitializing = false;
       });
     }
   }
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // App has come back to the foreground
+      _initializeApp(); // Re-run your init logic
+    }
+  }
+  void _updateDateTime() {
+    // Get Tokyo timezone
+    final tokyo = tz.getLocation('Asia/Tokyo');
+    final now = tz.TZDateTime.now(tokyo);
 
+    final formattedDate = DateFormat('MMMM dd, yyyy HH:mm:ss').format(now);
+
+    if (mounted) {
+      setState(() {
+        _currentDateTime = formattedDate;
+      });
+    }
+  }
   Future<void> _loadCurrentLanguage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -177,7 +182,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   Future<void> _loadPhOrJp() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _phOrJp = prefs.getString('phorjp') ?? 'jp';
+      _phOrJp = prefs.getString('phorjp') ?? 'ph';
     });
   }
 
@@ -219,11 +224,15 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         Navigator.pushReplacementNamed(context, '/loginJP');
       }
     } catch (e) {
-      print("国の設定を更新中にエラーが発生しました: $e");
+      print("Error updating country preference: $e");
       Fluttertoast.showToast(
-        msg: "国の更新中にエラーが発生しました: ${e.toString()}",
+        msg: _currentLanguage == 'ja'
+            ? '国設定の更新エラー: ${e.toString()}'
+            : 'Error updating country: ${e.toString()}',
         toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.BOTTOM,
+        backgroundColor: Colors.red.shade700,
+        textColor: Colors.white,
       );
     } finally {
       setState(() {
@@ -245,13 +254,13 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         await channel.invokeMethod('showInputMethodPicker');
       } else {
         Fluttertoast.showToast(
-          msg: "キーボードの選択はAndroidでのみ利用可能です",
+          msg: "Keyboard selection is only available on Android",
           toastLength: Toast.LENGTH_SHORT,
           gravity: ToastGravity.BOTTOM,
         );
       }
     } catch (e) {
-      debugPrint("入力方式の選択画面を表示中にエラーが発生しました: $e");
+      debugPrint("Error showing input method picker: $e");
     }
   }
 
@@ -271,7 +280,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         });
       }
     } catch (e) {
-      print('最後のID番号の読み込み中にエラーが発生しました: $e');
+      print('Error loading last ID number: $e');
     }
   }
 
@@ -302,7 +311,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         });
       }
     } catch (e) {
-      print("プロフィールの取得中にエラーが発生しました: $e");
+      print("Error fetching profile: $e");
     }
   }
   String _formatTimeIn(String timeIn) {
@@ -375,7 +384,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                             ),
                             SizedBox(height: 16),
                             Text(
-                              '電話状態確認',
+                              _currentLanguage == 'ja' ? '端末状態チェック' : 'Phone Condition Check',
                               textAlign: TextAlign.center,
                               style: TextStyle(
                                 fontSize: 22,
@@ -399,7 +408,9 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                               SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  '使用する前に電話に問題や損傷がないことを確認しましたか？正直に答えてください — すべての入力はシステムに記録されており、既存の問題に対して責任を問われたくはないはずです。',
+                                  _currentLanguage == 'ja'
+                                      ? '使用前に携帯電話に問題や損傷がないことを確認してください。正直に入力してください。全ての記録はシステムに保存され、既存の問題について責任を問われる可能性があります。'
+                                      : 'Are you sure the phone has no issues or damage before using it? Please be honest — every entry is recorded in the system, and you don\'t want to be held responsible for any existing problems.',
                                   style: TextStyle(
                                     color: Colors.amber.shade900,
                                     fontWeight: FontWeight.w600,
@@ -458,7 +469,9 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                             controller: _explanationController,
                             focusNode: _explanationFocusNode,
                             decoration: InputDecoration(
-                              labelText: '問題を説明してください',
+                              labelText: _currentLanguage == 'ja'
+                                  ? '問題の説明を入力してください'
+                                  : 'Please explain the issue',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
@@ -467,9 +480,10 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                             ),
                             maxLines: 3,
                             validator: (value) {
-                              if (phoneCondition == 'No' &&
-                                  (value == null || value.trim().isEmpty)) {
-                                return '説明を提供してください';
+                              if (phoneCondition == 'No' && (value == null || value.trim().isEmpty)) {
+                                return _currentLanguage == 'ja'
+                                    ? '理由を入力してください'
+                                    : 'Please provide an explanation';
                               }
                               return null;
                             },
@@ -484,7 +498,16 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
               actions: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(null),
-                  child: Text('キャンセル', style: TextStyle(color: Colors.grey.shade700)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey.shade700,
+                  ),
+                  child: Text(
+                    _currentLanguage == 'ja' ? 'キャンセル' : 'Cancel',
+                    style: TextStyle(
+                      color: Colors.grey.shade700,
+                      fontSize: 16,
+                    ),
+                  ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -515,10 +538,11 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                     String finalCondition = phoneCondition == 'Yes'
                         ? 'Good'
                         : 'Not Good: ${_explanationController.text.trim()}';
-
                     Navigator.of(context).pop({'phoneCondition': finalCondition});
                   },
-                  child: Text('確認'),
+                  child: Text(
+                    _currentLanguage == 'ja' ? '確認' : 'Confirm',
+                  ),
                 ),
               ],
             );
@@ -551,7 +575,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       }
     } catch (e) {
       setState(() => _isLoading = false);
-      print("データの取得中にエラーが発生しました: $e");
+      print("Error fetching data: $e");
     }
 
     return showDialog<Map<String, String>?>(
@@ -614,12 +638,18 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                               SizedBox(height: 20),
 
                               _buildInfoCard(
-                                title: '今日の成果',
+                                title: _currentLanguage == 'ja' ? '本日の実績' : 'Your Output Today',
                                 content: Column(
                                   children: [
-                                    _buildInfoRow('アイテム数', outputToday['totalCount'].toString()),
+                                    _buildInfoRow(
+                                        _currentLanguage == 'ja' ? 'アイテム数' : 'Item Count',
+                                        outputToday['totalCount'].toString()
+                                    ),
                                     SizedBox(height: 8),
-                                    _buildInfoRow('アイテム数量', outputToday['totalQty'].toString()),
+                                    _buildInfoRow(
+                                        _currentLanguage == 'ja' ? '総数量' : 'Item Quantity',
+                                        outputToday['totalQty'].toString()
+                                    ),
                                   ],
                                 ),
                                 backgroundColor: Colors.indigo.shade50,
@@ -630,12 +660,18 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
 
                               if (shiftTimeInfo.isNotEmpty)
                                 _buildInfoCard(
-                                  title: 'タイムログ',
+                                  title: _currentLanguage == 'ja' ? 'タイムログ' : 'Time Log',
                                   content: Column(
                                     children: [
-                                      _buildTimeRow('出勤時間', shiftTimeInfo['timeIn'] ?? '該当なし'),
+                                      _buildTimeRow(
+                                          _currentLanguage == 'ja' ? '出勤時間' : 'Time In',
+                                          shiftTimeInfo['timeIn'] ?? (_currentLanguage == 'ja' ? '未登録' : 'N/A')
+                                      ),
                                       SizedBox(height: 8),
-                                      _buildTimeRow('ログイン', shiftTimeInfo['loginTime'] ?? '該当なし'),
+                                      _buildTimeRow(
+                                          _currentLanguage == 'ja' ? 'ログイン時間' : 'Login',
+                                          shiftTimeInfo['loginTime'] ?? (_currentLanguage == 'ja' ? '未登録' : 'N/A')
+                                      ),
                                     ],
                                   ),
                                   backgroundColor: Colors.grey.shade100,
@@ -657,7 +693,9 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                               SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  '警備員に渡す前に、電話に問題がないことを確認しましたか？',
+                                  _currentLanguage == 'ja'
+                                      ? '守衛に渡す前に、電話に問題がないことを確認しますか？'
+                                      : 'Do you confirm the phone has no issues before handing it to the guard?',
                                   style: TextStyle(
                                     color: Colors.amber.shade900,
                                     fontWeight: FontWeight.w600,
@@ -718,16 +756,19 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                             controller: _explanationController,
                             focusNode: _explanationFocusNode,
                             decoration: InputDecoration(
-                              labelText: '問題を説明してください',
+                              labelText: _currentLanguage == 'ja'
+                                  ? '問題の内容を説明してください'
+                                  : 'Please explain the issue',
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
                             maxLines: 3,
                             validator: (value) {
-                              if (phoneCondition == 'No' &&
-                                  (value == null || value.trim().isEmpty)) {
-                                return '説明を提供してください';
+                              if (phoneCondition == 'No' && (value == null || value.trim().isEmpty)) {
+                                return _currentLanguage == 'ja'
+                                    ? '理由を入力してください'
+                                    : 'Please provide an explanation';
                               }
                               return null;
                             },
@@ -741,7 +782,9 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
               actions: <Widget>[
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(null),
-                  child: Text('キャンセル'),
+                  child: Text(
+                    _currentLanguage == 'ja' ? 'キャンセル' : 'Cancel',
+                  ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -773,7 +816,9 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
 
                     Navigator.of(context).pop({'phoneConditionOut': finalCondition});
                   },
-                  child: Text('確認'),
+                  child: Text(
+                    _currentLanguage == 'ja' ? '確認' : 'Confirm',
+                  ),
                 ),
               ],
             );
@@ -856,8 +901,12 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
           ScaffoldMessenger.of(context).removeCurrentSnackBar(); // Remove any existing snackbar
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('$deviceInfo にアクティブなログインセッションがあります'),
-              behavior: SnackBarBehavior.fixed, // Optional: prevents floating behavior
+              content: Text(
+                  _currentLanguage == 'ja'
+                      ? '$deviceInfo でアクティブなログインセッションがあります'
+                      : 'You have an active login session on $deviceInfo'
+              ),
+              behavior: SnackBarBehavior.fixed,
             ),
           );
           setState(() {
@@ -909,14 +958,21 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                 String message;
 
                 if (wtrResponse['isRelogin'] == true && wtrResponse['isLate'] == true) {
-                  title = "再ログイン（遅刻）";
-                  message = "再ログインしましたが、シフトに遅れています";
+                  title = _currentLanguage == 'ja' ? "再ログイン (遅刻)" : "Relogin (Late)";
+                  message = _currentLanguage == 'ja'
+                      ? "再ログインされました。シフトに遅刻しています"
+                      : "You have relogged in and you are late for your shift";
                 } else if (wtrResponse['isRelogin'] == true) {
-                  title = "再ログイン";
-                  message = "再ログインしました";
+                  title = _currentLanguage == 'ja' ? "再ログイン" : "Relogin";
+                  message = _currentLanguage == 'ja'
+                      ? "再ログインされました"
+                      : "You have relogged in";
                 } else {
-                  title = "遅刻ログイン";
-                  message = wtrResponse['lateMessage'] ?? "シフトに遅れています";
+                  title = _currentLanguage == 'ja' ? "遅刻ログイン" : "Late Login";
+                  message = wtrResponse['lateMessage'] ??
+                      (_currentLanguage == 'ja'
+                          ? "シフトに遅刻しています"
+                          : "You are late for your shift");
                 }
 
                 return AlertDialog(
@@ -934,11 +990,14 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
           });
         }
 
-        String successMessage = '$actualIdNumber で正常にログインしました';
+        String successMessage = _currentLanguage == 'ja'
+            ? 'ID: $actualIdNumber でログインしました'
+            : 'Successfully logged in with ID: $actualIdNumber';
         if (wtrResponse['updated'] == true) {
-          successMessage = '既存のWTRレコードがデバイス情報で正常に更新されました';
+          successMessage = _currentLanguage == 'ja'
+              ? 'デバイス情報で既存のWTRレコードを更新しました'
+              : 'Successfully updated existing WTR record with device info';
         }
-
         ScaffoldMessenger.of(context).removeCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(successMessage)),
@@ -956,7 +1015,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     }
   }
   Future<void> _logout() async {
-    final exemptedIds = ['1243', '0939', '1163', '1239', '1288', '1238'];
+    final exemptedIds = ['1243', '0939', '1163', '1239', '1288', '123s8'];
     final isExempted = exemptedIds.contains(_currentIdNumber);
 
     // Only show QR scanner for non exempted users
@@ -979,7 +1038,6 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     try {
       // First check if there are any active WTR sessions
       final activeSessionsCheck = await _apiService.checkActiveWTR(_currentIdNumber!);
-
       // Only proceed with confirm logout if there are active sessions
       if (activeSessionsCheck["hasActiveSessions"] == true) {
         // Call the confirmLogoutWTR API to check if the user is trying to log out before shift end
@@ -994,16 +1052,26 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
             context: context,
             builder: (BuildContext context) {
               return AlertDialog(
-                title: const Text("早退ログアウト"),
-                content: Text("あなたのシフトは${confirmResult["shiftOut"]}に終了します。今すぐログアウトしてもよろしいですか？"),
+                title: Text(
+                  _currentLanguage == 'ja' ? '早退の確認' : 'Early Logout',
+                ),
+                content: Text(
+                  _currentLanguage == 'ja'
+                      ? 'シフト終了時間は${confirmResult["shiftOut"]}です。本当にログアウトしますか？'
+                      : 'Your shift ends at ${confirmResult["shiftOut"]}. Are you sure you want to logout now?',
+                ),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text("キャンセル"),
+                    child: Text(
+                      _currentLanguage == 'ja' ? 'キャンセル' : 'Cancel',
+                    ),
                   ),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text("強制的にログアウト"),
+                    child: Text(
+                      _currentLanguage == 'ja' ? 'ログアウトする' : 'Logout Anyway',
+                    ),
                   ),
                 ],
               );
@@ -1017,16 +1085,24 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
               context: context,
               builder: (BuildContext context) {
                 return AlertDialog(
-                  title: const Text("ログアウトの確認"),
-                  content: const Text("本当にログアウトしてもよろしいですか？"),
+                  title: Text(
+                    _currentLanguage == 'ja' ? 'ログアウトの確認' : 'Confirm Logout',
+                  ),
+                  content: Text(
+                    _currentLanguage == 'ja' ? 'ログアウトしますか？' : 'Are you sure you want to logout?',
+                  ),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text("キャンセル"),
+                      child: Text(
+                        _currentLanguage == 'ja' ? 'キャンセル' : 'Cancel',
+                      ),
                     ),
                     TextButton(
                       onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text("ログアウト"),
+                      child: Text(
+                        _currentLanguage == 'ja' ? 'ログアウト' : 'Logout',
+                      ),
                     ),
                   ],
                 );
@@ -1060,7 +1136,15 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
             // Show undertime message
             ScaffoldMessenger.of(context).removeCurrentSnackBar();
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('シフト終了前にログアウトしました')),
+              SnackBar(
+                content: Text(
+                    _currentLanguage == 'ja'
+                        ? 'シフト終了前にログアウトしました'
+                        : 'You have logged out before your shift ended'
+                ),
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.fixed,
+              ),
             );
           }
         }
@@ -1078,7 +1162,15 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         });
         ScaffoldMessenger.of(context).removeCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('正常にログアウトしました')),
+          SnackBar(
+            content: Text(
+                _currentLanguage == 'ja'
+                    ? 'ログアウトに成功しました'
+                    : 'Logged out successfully'
+            ),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.fixed,
+          ),
         );
       } catch (e) {
         // Error handling
@@ -1112,14 +1204,18 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Center(
-                      child: Text(
-                        "ログアウトするには守衛所でQRコードをスキャンしてください",
+                    Center(  // Removed const
+                      child: Text(  // Removed const
+                        _currentLanguage == 'ja'
+                            ? 'ログアウト時は守衛所でQRコードをスキャンしてください'
+                            : 'Scan the QR code at the Guard House to log out',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: _currentLanguage == 'ja' ? 16 : 18,
                           fontWeight: FontWeight.bold,
+                          height: 1.4,
                         ),
                         textAlign: TextAlign.center,
+                        softWrap: true,
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -1157,12 +1253,12 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(child: Container()), // Spacer
+                        const Expanded(child: SizedBox()), // Spacer
                         IconButton(
                           icon: Icon(
-                            Icons.highlight, // or use Icons.flashlight_on if you're on Material 3
+                            Icons.highlight,
                             color: _isFlashOn ? Colors.amber : Colors.grey,
-                            size: 36, // Increased size
+                            size: 36,
                           ),
                           onPressed: () async {
                             if (qrController != null) {
@@ -1178,11 +1274,13 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                             alignment: Alignment.centerRight,
                             child: TextButton(
                               onPressed: () {
-                                _isFlashOn = false; // Reset flash icon
+                                _isFlashOn = false;
                                 Navigator.of(context).pop(false);
                                 qrController?.dispose();
                               },
-                              child: const Text("Cancel"),
+                              child: Text(
+                                _currentLanguage == 'ja' ? 'キャンセル' : 'Cancel',
+                              ),
                             ),
                           ),
                         ),
@@ -1196,10 +1294,11 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         );
       },
     ).then((value) {
-      _isFlashOn = false; // Also reset after dialog closes in any way
+      _isFlashOn = false;
       return value;
     });
   }
+
   String xorDecrypt(String base64Data, String key) {
     final decodedBytes = base64.decode(base64Data);
     final keyBytes = utf8.encode(key);
@@ -1229,12 +1328,16 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
           qrController?.dispose();
         } else {
           setState(() {
-            _qrErrorMessage = '無効なQRコードデータ';
+            _qrErrorMessage = _currentLanguage == 'ja'
+                ? '無効なQRコードデータです'
+                : 'Invalid QR code data';
           });
         }
       } catch (e) {
         setState(() {
-          _qrErrorMessage = 'QRコードのデコードに失敗しました';
+          _qrErrorMessage = _currentLanguage == 'ja'
+              ? 'QRコードのデコードに失敗しました'
+              : 'Failed to decode QR code';
         });
       }
     });
@@ -1244,9 +1347,11 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     try {
       String? identifier = await UniqueIdentifier.serial;
       return identifier ?? 'unknown-device';
-    } catch (e) {
+    }catch (e) {
       print('Error getting device identifier: $e');
-      return 'error-getting-device-id';
+      return _currentLanguage == 'ja'
+          ? 'デバイスIDの取得中にエラーが発生しました'
+          : 'error-getting-device-id';
     }
   }
 
@@ -1340,7 +1445,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                               ),
                               SizedBox(width: 10),
                               Text(
-                                'ARK LOG',
+                                _currentLanguage == 'ja' ? 'アークログ' : 'ARK LOG',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 30,
@@ -1395,11 +1500,13 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                         ),
                         SizedBox(height: 20),
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: _currentLanguage == 'ja' ? 35.0 : 16.0,
+                          ),
                           child: Row(
                             children: [
                               Text(
-                                "言語",
+                                _currentLanguage == 'ja' ? '言語' : 'Language',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -1452,7 +1559,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                           child: Row(
                             children: [
                               Text(
-                                "キーボード",
+                                _currentLanguage == 'ja' ? 'キーボード' : 'Keyboard',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -1471,11 +1578,13 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                         ),
                         SizedBox(height: 20),
                         Padding(
-                          padding: const EdgeInsets.only(left: 46.0),
+                          padding: EdgeInsets.only(
+                            left: _currentLanguage == 'ja' ? 46.0 : 30.0,
+                          ),
                           child: Row(
                             children: [
                               Text(
-                                "手引き",
+                                _currentLanguage == 'ja' ? '手引き' : 'Manual',
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
@@ -1517,7 +1626,13 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                                   } catch (e) {
                                     if (!mounted) return;
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Failed to open manual: ${e.toString()}')),
+                                      SnackBar(
+                                        content: Text(
+                                            _currentLanguage == 'ja'
+                                                ? 'マニュアルのオープンに失敗しました: ${e.toString()}'
+                                                : 'Failed to open manual: ${e.toString()}'
+                                        ),
+                                      ),
                                     );
                                   } finally {
                                     if (!mounted) return;
@@ -1539,7 +1654,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                   child: Row(
                     children: [
                       Text(
-                        "国",
+                        _currentLanguage == 'ja' ? '国' : 'Country',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -1670,7 +1785,13 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                     child: Column(
                       children: [
                         Text(
-                          _isLoggedIn ? 'ようこそ ${_firstName ?? ""}' : 'ID番号を入力してください',
+                          _isLoggedIn
+                              ? (_currentLanguage == 'ja'
+                              ? 'ようこそ ${_firstName ?? ""}さん'
+                              : 'Welcome ${_firstName ?? ""}')
+                              : (_currentLanguage == 'ja'
+                              ? 'ID番号を入力してください'
+                              : 'Enter your ID number'),
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 24,
@@ -1758,7 +1879,9 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                                 if (_latestTimeIn != null) ...[
                                   const SizedBox(height: 4),
                                   Text(
-                                    '前回のログイン: $_latestTimeIn',
+                                    _currentLanguage == 'ja'
+                                        ? '最終ログイン: $_latestTimeIn'
+                                        : 'Last Login: $_latestTimeIn',
                                     style: TextStyle(
                                       color: Colors.grey[600],
                                       fontSize: 13,
@@ -1775,7 +1898,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                             TextFormField(
                               controller: _idController,
                               decoration: InputDecoration(
-                                labelText: 'ID番号',
+                                labelText: _currentLanguage == 'ja' ? 'ID番号' : 'ID Number',
                                 prefixIcon: const Icon(Icons.badge),
                                 suffixIcon: _idController.text.isNotEmpty
                                     ? IconButton(
@@ -1792,7 +1915,9 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'ID番号を入力してください';
+                                  return _currentLanguage == 'ja'
+                                      ? 'ID番号を入力してください'
+                                      : 'Please enter your ID number';
                                 }
                                 return null;
                               },
@@ -1827,7 +1952,9 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                               child: _isLoading
                                   ? const CircularProgressIndicator(color: Colors.white)
                                   : Text(
-                                _isLoggedIn ? 'ログアウト' : 'ログイン',
+                                _isLoggedIn
+                                    ? (_currentLanguage == 'ja' ? 'ログアウト' : 'LOGOUT')
+                                    : (_currentLanguage == 'ja' ? 'ログイン' : 'LOGIN'),
                                 style: const TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
