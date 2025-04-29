@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../api_service.dart';
+import '../pdfViewer.dart';
 import 'api_serviceJP.dart';
 import 'package:unique_identifier/unique_identifier.dart';
 import 'package:http/http.dart' as http;
@@ -25,6 +27,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   final TextEditingController _idController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   final ApiServiceJP _apiService = ApiServiceJP();
+  final ApiService _apiServiceph = ApiService();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   QRViewController? qrController;
@@ -1461,6 +1464,67 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                                 iconSize: 28,
                                 onPressed: () {
                                   _showInputMethodPicker();
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                        SizedBox(height: 20),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 29.0),
+                          child: Row(
+                            children: [
+                              Text(
+                                "Manual",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(width: 15),
+                              IconButton(
+                                icon: Icon(Icons.menu_book, size: 28),
+                                iconSize: 28,
+                                onPressed: () async {
+                                  try {
+                                    // Show loading indicator
+                                    setState(() {
+                                      _isLoading = true;
+                                    });
+
+                                    // Get the current language from shared preferences
+                                    final prefs = await SharedPreferences.getInstance();
+                                    final language = prefs.getString('language') ?? 'en';
+
+                                    // Determine language flag (1 for English, 2 for Japanese)
+                                    final languageFlag = language == 'ja' ? 2 : 1;
+
+                                    // Fetch the manual link (using linkID 10 as specified)
+                                    final pdfUrl = await _apiServiceph.fetchManualLink(10, languageFlag);
+
+                                    // Open the PDF viewer
+                                    if (!mounted) return;
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => PDFViewerScreen(
+                                          pdfUrl: pdfUrl,
+                                          fileName: 'manual_${language == 'ja' ? 'jp' : 'en'}.pdf',
+                                          languageFlag: languageFlag,
+                                        ),
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    if (!mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Failed to open manual: ${e.toString()}')),
+                                    );
+                                  } finally {
+                                    if (!mounted) return;
+                                    setState(() {
+                                      _isLoading = false;
+                                    });
+                                  }
                                 },
                               ),
                             ],
