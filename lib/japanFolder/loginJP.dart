@@ -1185,8 +1185,8 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   }
 
   Future<bool?> _showQrScanner() async {
-    _qrErrorMessage = null; // Reset error message
-    _isFlashOn = false;     // Reset flash icon initially
+    _qrErrorMessage = null;
+    _isFlashOn = false;
 
     return await showDialog<bool>(
       context: context,
@@ -1194,100 +1194,119 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         return StatefulBuilder(
           builder: (context, setState) {
             return Dialog(
-              insetPadding: EdgeInsets.zero,
+              insetPadding: const EdgeInsets.all(8),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Container(
-                width: MediaQuery.of(context).size.width * 0.95,
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Center(  // Removed const
-                      child: Text(  // Removed const
-                        _currentLanguage == 'ja'
-                            ? 'ログアウト時は守衛所でQRコードをスキャンしてください'
-                            : 'Scan the QR code at the Guard House to log out',
-                        style: TextStyle(
-                          fontSize: _currentLanguage == 'ja' ? 16 : 18,
-                          fontWeight: FontWeight.bold,
-                          height: 1.4,
-                        ),
-                        textAlign: TextAlign.center,
-                        softWrap: true,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: SizedBox(
-                        width: MediaQuery.of(context).size.width * 0.9,
-                        height: MediaQuery.of(context).size.width * 0.9,
-                        child: QRView(
-                          key: qrKey,
-                          onQRViewCreated: (controller) => _onQRViewCreated(controller, setState),
-                          overlay: QrScannerOverlayShape(
-                            borderColor: Colors.red,
-                            borderRadius: 10,
-                            borderLength: 30,
-                            borderWidth: 10,
-                            cutOutSize: MediaQuery.of(context).size.width * 0.7,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final screenWidth = MediaQuery.of(context).size.width;
+                  final screenHeight = MediaQuery.of(context).size.height;
+                  final isLandscape = screenWidth > screenHeight;
+
+                  // Larger size for scanner but keep some margin
+                  final maxScannerSize = isLandscape
+                      ? screenHeight - 160 // leave room for text/buttons
+                      : screenWidth * 0.85;
+
+                  return SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _currentLanguage == 'ja'
+                                ? 'ログアウト時は守衛所でQRコードをスキャンしてください'
+                                : 'Scan the QR code at the Guard House to log out',
+                            style: TextStyle(
+                              fontSize: _currentLanguage == 'ja' ? 16 : 18,
+                              fontWeight: FontWeight.bold,
+                              height: 1.4,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                        ),
-                      ),
-                    ),
-                    if (_qrErrorMessage != null)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(
-                          _qrErrorMessage!,
-                          style: const TextStyle(
-                            color: Colors.red,
-                            fontSize: 14,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Expanded(child: SizedBox()), // Spacer
-                        IconButton(
-                          icon: Icon(
-                            Icons.highlight,
-                            color: _isFlashOn ? Colors.amber : Colors.grey,
-                            size: 36,
-                          ),
-                          onPressed: () async {
-                            if (qrController != null) {
-                              await qrController?.toggleFlash();
-                              setState(() {
-                                _isFlashOn = !_isFlashOn;
-                              });
-                            }
-                          },
-                        ),
-                        Expanded(
-                          child: Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {
-                                _isFlashOn = false;
-                                Navigator.of(context).pop(false);
-                                qrController?.dispose();
-                              },
-                              child: Text(
-                                _currentLanguage == 'ja' ? 'キャンセル' : 'Cancel',
+                          const SizedBox(height: 16),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: maxScannerSize,
+                                maxHeight: maxScannerSize,
+                              ),
+                              child: AspectRatio(
+                                aspectRatio: 1,
+                                child: QRView(
+                                  key: qrKey,
+                                  onQRViewCreated: (controller) =>
+                                      _onQRViewCreated(controller, setState),
+                                  overlay: QrScannerOverlayShape(
+                                    borderColor: Colors.red,
+                                    borderRadius: 10,
+                                    borderLength: 30,
+                                    borderWidth: 10,
+                                    cutOutSize: maxScannerSize * 0.8,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                          if (_qrErrorMessage != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                _qrErrorMessage!,
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontSize: 14,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Expanded(child: SizedBox()), // Spacer
+                              IconButton(
+                                icon: Icon(
+                                  Icons.highlight,
+                                  color: _isFlashOn ? Colors.amber : Colors.grey,
+                                  size: 36,
+                                ),
+                                onPressed: () async {
+                                  if (qrController != null) {
+                                    await qrController?.toggleFlash();
+                                    setState(() {
+                                      _isFlashOn = !_isFlashOn;
+                                    });
+                                  }
+                                },
+                              ),
+                              Expanded(
+                                child: Align(
+                                  alignment: Alignment.centerRight,
+                                  child: TextButton(
+                                    onPressed: () {
+                                      _isFlashOn = false;
+                                      Navigator.of(context).pop(false);
+                                      qrController?.dispose();
+                                    },
+                                    child: Text(
+                                      _currentLanguage == 'ja'
+                                          ? 'キャンセル'
+                                          : 'Cancel',
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
             );
           },
@@ -1298,6 +1317,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       return value;
     });
   }
+
 
   String xorDecrypt(String base64Data, String key) {
     final decodedBytes = base64.decode(base64Data);
