@@ -189,11 +189,19 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   Future<void> _updateLanguage(String language) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     await prefs.setString('languageJP', language);
+    if (_currentIdNumber != null) {
+      try {
+        int languageFlag = language == 'ja' ? 2 : 1;
+        await _apiService.updateLanguageFlag(_currentIdNumber!, languageFlag);
+      } catch (e) {
+        print("Error updating language flag: $e");
+      }
+    }
+
     setState(() {
       _currentLanguage = language;
     });
   }
-
   Future<void> _updatePhOrJp(String value) async {
     if ((value == 'ph' && _isCountryLoadingPh) || (value == 'jp' && _isCountryLoadingJp)) {
       return;
@@ -301,6 +309,10 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         String? latestTimeIn = timeInData["latestTimeIn"] != null
             ? _formatTimeIn(timeInData["latestTimeIn"])
             : null;
+
+        int languageFlag = profileData["languageFlag"] ?? 2; // Default to 1 if not set
+        String language = languageFlag == 2 ? "ja" : "en";
+        await _updateLanguage(language);
 
         setState(() {
           _firstName = profileData["firstName"];

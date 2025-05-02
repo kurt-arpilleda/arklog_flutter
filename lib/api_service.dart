@@ -576,4 +576,32 @@ class ApiService {
     String finalError = "All API URLs are unreachable after $maxRetries attempts";
     throw Exception(finalError);
   }
+  Future<bool> updateLanguageFlag(String idNumber, int languageFlag) async {
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      for (String apiUrl in apiUrls) {
+        try {
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_updateLanguageFlag.php");
+          final response = await http.post(
+            uri,
+            body: {
+              'idNumber': idNumber,
+              'languageFlag': languageFlag.toString(),
+            },
+          ).timeout(requestTimeout);
+
+          if (response.statusCode == 200) {
+            final responseData = jsonDecode(response.body);
+            return responseData["success"] == true;
+          }
+        } catch (e) {
+          // print("Error accessing $apiUrl on attempt $attempt: $e");
+        }
+      }
+      if (attempt < maxRetries) {
+        final delay = initialRetryDelay * (1 << (attempt - 1));
+        await Future.delayed(delay);
+      }
+    }
+    throw Exception("Both API URLs are unreachable after $maxRetries attempts");
+  }
 }
