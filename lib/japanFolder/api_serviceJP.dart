@@ -505,7 +505,7 @@ class ApiServiceJP {
   }
 
   Future<String> fetchPhoneName(String deviceId) async {
-    String defaultPhoneName = "ARK LOG";
+    String defaultPhoneName = "ARK LOG JP";
 
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       for (String apiUrl in apiUrls) {
