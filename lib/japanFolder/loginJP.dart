@@ -310,7 +310,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
             ? _formatTimeIn(timeInData["latestTimeIn"])
             : null;
 
-        int languageFlag = profileData["languageFlag"] ?? 2; // Default to 1 if not set
+        int languageFlag = profileData["languageFlag"] ?? 2; // Default to 2 if not set
         String language = languageFlag == 2 ? "ja" : "en";
         await _updateLanguage(language);
 
