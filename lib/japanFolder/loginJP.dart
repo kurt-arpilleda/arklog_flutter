@@ -1227,16 +1227,20 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            _currentLanguage == 'ja'
-                                ? 'ログアウト時は守衛所でQRコードをスキャンしてください'
-                                : 'Scan the QR code at the Guard House to log out',
-                            style: TextStyle(
-                              fontSize: _currentLanguage == 'ja' ? 16 : 18,
-                              fontWeight: FontWeight.bold,
-                              height: 1.4,
-                            ),
-                            textAlign: TextAlign.center,
+                          Column(
+                            children: [
+                              Text(
+                                _currentLanguage == 'ja'
+                                    ? 'ログアウト時は守衛所でQRコードをスキャンしてください'
+                                    : 'Scan the QR code at the Guard House to log out',
+                                style: TextStyle(
+                                  fontSize: _currentLanguage == 'ja' ? 16 : 18,
+                                  fontWeight: FontWeight.bold,
+                                  height: 1.4,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ],
                           ),
                           const SizedBox(height: 16),
                           ClipRRect(
@@ -1262,6 +1266,18 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                                 ),
                               ),
                             ),
+                          ),
+                          const SizedBox(height: 12), // spacing below scanner
+                          Text(
+                            _currentLanguage == 'ja'
+                                ? '⚠️ ログアウトするにはAPI-Guard-HigherBand Wi-Fiに接続されていることを確認してください'
+                                : '⚠️ Make sure you are connected to API-Guard-HigherBand wifi to log out',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
                           if (_qrErrorMessage != null)
                             Padding(
@@ -1329,7 +1345,6 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       return value;
     });
   }
-
 
   String xorDecrypt(String base64Data, String key) {
     final decodedBytes = base64.decode(base64Data);
