@@ -706,14 +706,14 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                               Expanded(
                                 child: Text(
                                   _currentLanguage == 'ja'
-                                      ? '守衛に渡す前に、電話に問題がないことを確認しますか？'
-                                      : 'Do you confirm the phone has no issues before handing it to the guard?',
+                                      ? '守衛に預ける前に、電話に問題や損傷がないか確認しますか？'
+                                      : 'Do you confirm the phone has no issues or damage before charging it to the guardhouse?',
                                   style: TextStyle(
                                     color: Colors.amber.shade900,
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
-                              ),
+                              )
                             ],
                           ),
                         ),
@@ -1270,11 +1270,11 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                           const SizedBox(height: 12), // spacing below scanner
                           Text(
                             _currentLanguage == 'ja'
-                                ? '⚠️ ログアウトするにはAPI-Guard-HigherBand Wi-Fiに接続されていることを確認してください'
-                                : '⚠️ Make sure you are connected to API-Guard-HigherBand wifi to log out',
+                                ? '⚠️ ログアウトにはAPI-Guard-HigherBand Wi-Fiへの接続が必要です。ログアウト後は守衛に電話を充電してください。'
+                                : '⚠️ Connect to API-Guard-HigherBand Wi-Fi to log out. Please charge the phone to the guardhouse after logging out.',
                             style: TextStyle(
                               fontSize: 14,
-                              color: Colors.redAccent,
+                              color: Colors.deepOrange,
                               fontWeight: FontWeight.w600,
                             ),
                             textAlign: TextAlign.center,
