@@ -11,8 +11,8 @@ class ApiServiceJP {
 
   // Timeout and retry settings
   static const Duration requestTimeout = Duration(seconds: 2);
-  static const int maxRetries = 3; // Reduced from 6 to minimize wait time
-  static const Duration initialRetryDelay = Duration(milliseconds: 500); // Reduced from 1 second
+  static const int maxRetries = 3;
+  static const Duration initialRetryDelay = Duration(milliseconds: 500);
 
   // Track API health status
   static final Map<String, bool> _apiHealthStatus = {
