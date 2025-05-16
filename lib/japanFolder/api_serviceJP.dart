@@ -21,7 +21,7 @@ class ApiServiceJP {
   late http.Client httpClient;
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
 
-  ApiService() {
+  ApiServiceJP() {
     httpClient = _createHttpClient();
   }
 
