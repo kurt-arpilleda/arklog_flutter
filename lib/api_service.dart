@@ -1,155 +1,232 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'package:http/io_client.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   static const List<String> apiUrls = [
     "http://192.168.254.163/",
     "http://126.209.7.246/"
   ];
+
   static const Duration requestTimeout = Duration(seconds: 2);
   static const int maxRetries = 6;
   static const Duration initialRetryDelay = Duration(seconds: 1);
 
+  // Cache for the last working server index
+  int? _lastWorkingServerIndex;
+  late http.Client httpClient;
+  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
+
+  ApiService() {
+    httpClient = _createHttpClient();
+  }
+
+  http.Client _createHttpClient() {
+    final HttpClient client = HttpClient()
+      ..badCertificateCallback = (X509Certificate cert, String host, int port) => true;
+    return IOClient(client);
+  }
+
+  void _showToast(String message) {
+    Fluttertoast.showToast(
+      msg: message,
+      toastLength: Toast.LENGTH_LONG,
+      gravity: ToastGravity.BOTTOM,
+    );
+  }
+
+  // Helper method to make parallel requests and return the first successful response
+  Future<T> _makeParallelRequest<T>(Future<T> Function(String apiUrl) requestFn) async {
+    // Try the last working server first if available
+    if (_lastWorkingServerIndex != null) {
+      try {
+        final result = await requestFn(apiUrls[_lastWorkingServerIndex!])
+            .timeout(requestTimeout);
+        return result;
+      } catch (e) {
+        // If the last working server fails, proceed with parallel requests
+      }
+    }
+
+    // Create a list of futures for all API URLs
+    final futures = apiUrls.map((apiUrl) => requestFn(apiUrl).timeout(requestTimeout));
+
+    // Use Future.any to get the first successful response
+    try {
+      final result = await Future.any(futures);
+      // Remember which server worked
+      _lastWorkingServerIndex = apiUrls.indexOf((result as dynamic).apiUrlUsed ?? apiUrls[0]);
+      return result;
+    } catch (e) {
+      // If all parallel requests fail, throw an exception
+      throw Exception("All API URLs are unreachable");
+    }
+  }
+
   Future<Map<String, dynamic>> fetchProfile(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (String apiUrl in apiUrls) {
-        try {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
           final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchProfile.php?idNumber=$idNumber");
-          final response = await http.get(uri).timeout(requestTimeout);
+          final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
-            return jsonDecode(response.body);
+            final data = jsonDecode(response.body);
+            if (data["success"] == true) {
+              return _ApiResult(data, apiUrl);
+            } else {
+              throw Exception(data["message"] ?? "Profile fetch failed");
+            }
           }
-        } catch (e) {
-          // print("Error accessing $apiUrl on attempt $attempt: $e");
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
         }
-      }
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        await Future.delayed(delay);
       }
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+
   Future<String?> getLastIdNumber(String deviceId) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (String apiUrl in apiUrls) {
-        try {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
           final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_getLastId.php?deviceId=$deviceId");
-          final response = await http.get(uri).timeout(requestTimeout);
+          final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
             if (data["success"] == true) {
-              return data["idNumber"];
+              return _ApiResult(data["idNumber"], apiUrl);
             }
-            return null;
+            return _ApiResult(null, apiUrl);
           }
-        } catch (e) {
-          // print("Error accessing $apiUrl on attempt $attempt: $e");
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
         }
-      }
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        await Future.delayed(delay);
       }
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+
   Future<void> logout(String deviceId) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (String apiUrl in apiUrls) {
-        try {
+      try {
+        await _makeParallelRequest((apiUrl) async {
           final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_logout.php");
-          final response = await http.post(
+          final response = await httpClient.post(
             uri,
             body: {'deviceId': deviceId},
-          ).timeout(requestTimeout);
+          );
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
             if (data["success"] == true) {
-              return;
+              return _ApiResult(null, apiUrl);
             } else {
               throw Exception(data["message"]);
             }
           }
-        } catch (e) {
-          // print("Error accessing $apiUrl on attempt $attempt: $e");
+          throw Exception("HTTP ${response.statusCode}");
+        });
+        return; // Success
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
         }
-      }
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        await Future.delayed(delay);
       }
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+
   Future<Map<String, dynamic>> confirmLogoutWTR(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (String apiUrl in apiUrls) {
-        try {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
           final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_confirmLogoutWTR.php");
-          final response = await http.post(
+          final response = await httpClient.post(
             uri,
             body: {'idNumber': idNumber},
-          ).timeout(requestTimeout);
+          );
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
             if (data["success"] == true) {
-              return data;
+              return _ApiResult(data, apiUrl);
             } else {
               throw Exception(data["message"]);
             }
           }
-        } catch (e) {
-          // print("Error accessing $apiUrl on attempt $attempt: $e");
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
         }
-      }
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        await Future.delayed(delay);
       }
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+
   Future<bool> _checkDTRRecord(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (String apiUrl in apiUrls) {
-        try {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
           final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkDTR.php?idNumber=$idNumber");
-          final response = await http.get(uri).timeout(requestTimeout);
+          final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
-            return data["hasDTRRecord"] == true;
+            return _ApiResult(data["hasDTRRecord"] == true, apiUrl);
           }
-        } catch (e) {
-          // Continue with retry logic
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
         }
-      }
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        await Future.delayed(delay);
       }
     }
     throw Exception("Failed to check DTR record after $maxRetries attempts");
   }
-// Update insertWTR method to include phoneCondition parameter
+
   Future<Map<String, dynamic>> insertWTR(String idNumber, {required String deviceId, String phoneCondition = 'Good'}) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (String apiUrl in apiUrls) {
-        try {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
           // Check if there's an existing active WTR record first
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkActiveWTR.php");
-          final checkResponse = await http.post(
-            uri,
-            body: {
-              'idNumber': idNumber,
-            },
-          ).timeout(requestTimeout);
+          final checkUri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkActiveWTR.php");
+          final checkResponse = await httpClient.post(
+            checkUri,
+            body: {'idNumber': idNumber},
+          );
 
           if (checkResponse.statusCode == 200) {
             final checkData = jsonDecode(checkResponse.body);
@@ -157,24 +234,24 @@ class ApiService {
             if (checkData["success"] == true && checkData["hasActiveSessions"] == true) {
               // Update the existing WTR record with phoneName and dateInDetail
               final updateUri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_existingInsert.php");
-              final updateResponse = await http.post(
+              final updateResponse = await httpClient.post(
                 updateUri,
                 body: {
                   'idNumber': idNumber,
                   'deviceId': deviceId,
                   'phoneCondition': phoneCondition,
                 },
-              ).timeout(requestTimeout);
+              );
 
               if (updateResponse.statusCode == 200) {
                 final updateData = jsonDecode(updateResponse.body);
                 if (updateData["success"] == true) {
-                  return {
+                  return _ApiResult({
                     "success": true,
                     "message": "Existing WTR login found and updated",
                     "hasActiveLogin": true,
                     "updated": true
-                  };
+                  }, apiUrl);
                 }
               }
             }
@@ -182,65 +259,80 @@ class ApiService {
 
           // If no active sessions or update failed, proceed with normal insertion
           final insertUri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_insertWTR.php");
-          final response = await http.post(
+          final response = await httpClient.post(
             insertUri,
             body: {
               'idNumber': idNumber,
               'deviceId': deviceId,
               'phoneCondition': phoneCondition,
             },
-          ).timeout(requestTimeout);
+          );
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
             if (data["success"] == true) {
               // Check if there's an active login without logout
               if (data["hasActiveLogin"] == true) {
-                return {
+                return _ApiResult({
                   "success": true,
                   "message": "Existing WTR login found without logout",
                   "hasActiveLogin": true,
-                };
+                }, apiUrl);
               }
               // Check if WTR record already existed (completed session)
               if (data["alreadyExists"] == true) {
-                return {
+                return _ApiResult({
                   "success": true,
                   "message": "WTR record already exists",
                   "isLate": false,
-                };
+                }, apiUrl);
               }
-              return data;
+              return _ApiResult(data, apiUrl);
             } else {
               throw Exception(data["message"] ?? "Unknown error occurred");
             }
           }
-        } catch (e) {
-          if (e is Exception && e.toString().contains("ID number does not exist")) {
-            throw e;
-          }
-          // Otherwise continue with retry logic
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        if (e is Exception && e.toString().contains("ID number does not exist")) {
+          throw e;
         }
-      }
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        await Future.delayed(delay);
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
+        }
       }
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+
   Future<String> insertIdNumber(String idNumber, {required String deviceId}) async {
+    // First check if ID exists and is active
+    try {
+      final exists = await _checkIdExistsAndActive(idNumber);
+      if (!exists) {
+        throw Exception("This ID is not existing or is not active");
+      }
+    } catch (e) {
+      throw Exception("This ID is not existing or is not active");
+    }
+
+    // If ID exists and is active, proceed with the original logic
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (String apiUrl in apiUrls) {
-        try {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
           final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_idLog.php");
-          final response = await http.post(
+          final response = await httpClient.post(
             uri,
             body: {
               'idNumber': idNumber,
               'deviceId': deviceId,
             },
-          ).timeout(requestTimeout);
+          );
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
@@ -250,136 +342,175 @@ class ApiService {
               if (!dtrCheck) {
                 throw Exception("Please Log first on DTR");
               }
-              return data["idNumber"] ?? idNumber;
+              return _ApiResult(data["idNumber"] ?? idNumber, apiUrl);
             } else {
               throw Exception(data["message"] ?? "Unknown error occurred");
             }
           }
-        } catch (e) {
-          if (e is Exception && (e.toString().contains("ID number does not exist") ||
-              e.toString().contains("Please Log first on DTR"))) {
-            throw e;
-          }
-          // Otherwise continue with retry logic
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        if (e is Exception && (e.toString().contains("ID number does not exist") ||
+            e.toString().contains("Please Log first on DTR"))) {
+          throw e;
         }
-      }
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        await Future.delayed(delay);
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
+        }
       }
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+
+  Future<bool> _checkIdExistsAndActive(String idNumber) async {
+    try {
+      final response = await _makeParallelRequest((apiUrl) async {
+        final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkId.php");
+        final response = await httpClient.post(
+          uri,
+          body: {'idNumber': idNumber},
+        );
+        if (response.statusCode == 200) {
+          final data = jsonDecode(response.body);
+          return _ApiResult(data["exists"] ?? false, apiUrl);
+        }
+        throw Exception("HTTP ${response.statusCode}");
+      });
+      return response.value;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<Map<String, dynamic>> checkActiveLogin(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (String apiUrl in apiUrls) {
-        try {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
           final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkActiveLogin.php");
-          final response = await http.post(
+          final response = await httpClient.post(
             uri,
             body: {
               'idNumber': idNumber,
             },
-          ).timeout(requestTimeout);
+          );
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
-            return data;
+            return _ApiResult(data, apiUrl);
           }
-        } catch (e) {
-          // Continue with retry logic
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
         }
-      }
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        await Future.delayed(delay);
       }
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+
   Future<Map<String, dynamic>> logoutWTR(String idNumber, {String? phoneConditionOut}) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (String apiUrl in apiUrls) {
-        try {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
           final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_logoutWTR.php");
-          final response = await http.post(
+          final response = await httpClient.post(
             uri,
             body: {
               'idNumber': idNumber,
               if (phoneConditionOut != null) 'phoneConditionOut': phoneConditionOut,
             },
-          ).timeout(requestTimeout);
+          );
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
             if (data["success"] == true) {
               // Skip if already logged out
               if (data['alreadyLoggedOut'] == true) {
-                return data;
+                return _ApiResult(data, apiUrl);
               }
               // Return undertime data if applicable
-              return data;
+              return _ApiResult(data, apiUrl);
             } else {
               throw Exception(data["message"]);
             }
           }
-        } catch (e) {
-          // print("Error accessing $apiUrl on attempt $attempt: $e");
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
         }
-      }
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        await Future.delayed(delay);
       }
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+
   Future<Map<String, dynamic>> checkActiveWTR(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (String apiUrl in apiUrls) {
-        try {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
           final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkAnyActiveWTR.php");
-          final response = await http.post(
+          final response = await httpClient.post(
             uri,
             body: {'idNumber': idNumber},
-          ).timeout(requestTimeout);
+          );
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
             if (data["success"] == true) {
-              return data;
+              return _ApiResult(data, apiUrl);
             } else {
               throw Exception(data["message"]);
             }
           }
-        } catch (e) {
-          // print("Error accessing $apiUrl on attempt $attempt: $e");
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
         }
-      }
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        await Future.delayed(delay);
       }
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+
   Future<Map<String, dynamic>> fetchTimeIns(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (String apiUrl in apiUrls) {
-        try {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
           final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchTimeIn.php?idNumber=$idNumber");
-          final response = await http.get(uri).timeout(requestTimeout);
+          final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
-            return jsonDecode(response.body);
+            return _ApiResult(jsonDecode(response.body), apiUrl);
           }
-        } catch (e) {
-          // Continue with retry logic
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
         }
-      }
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        await Future.delayed(delay);
       }
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
@@ -387,24 +518,27 @@ class ApiService {
 
   Future<Map<String, dynamic>> checkExclusiveLogin(String deviceId) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (String apiUrl in apiUrls) {
-        try {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
           final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkExclusive.php");
-          final response = await http.post(
+          final response = await httpClient.post(
             uri,
             body: {'deviceId': deviceId},
-          ).timeout(requestTimeout);
+          );
 
           if (response.statusCode == 200) {
-            return jsonDecode(response.body);
+            return _ApiResult(jsonDecode(response.body), apiUrl);
           }
-        } catch (e) {
-          // Continue with retry logic
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
         }
-      }
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        await Future.delayed(delay);
       }
     }
     throw Exception("Failed to check exclusive login after $maxRetries attempts");
@@ -412,93 +546,104 @@ class ApiService {
 
   Future<bool> autoLoginExclusiveUser(String idNumber, String deviceId) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (String apiUrl in apiUrls) {
-        try {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
           final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_idLog.php");
-          final response = await http.post(
+          final response = await httpClient.post(
             uri,
             body: {
               'idNumber': idNumber,
               'deviceId': deviceId,
             },
-          ).timeout(requestTimeout);
+          );
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
-            return data["success"] == true;
+            return _ApiResult(data["success"] == true, apiUrl);
           }
-        } catch (e) {
-          // Continue with retry logic
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
         }
-      }
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        await Future.delayed(delay);
       }
     }
     throw Exception("Failed to auto-login exclusive user after $maxRetries attempts");
   }
+
   Future<Map<String, dynamic>> getShiftTimeInfo(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (String apiUrl in apiUrls) {
-        try {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
           final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_getShiftTimeInfo.php");
-          final response = await http.post(
+          final response = await httpClient.post(
             uri,
             body: {
               'idNumber': idNumber,
             },
-          ).timeout(requestTimeout);
+          );
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
             if (data["success"] == true) {
-              return {
+              return _ApiResult({
                 "timeIn": data["dtrTimeIn"] ?? 'N/A',  // From hr_dtr
                 "loginTime": data["wtrTimeIn"] ?? 'N/A' // From hr_wtr
-              };
+              }, apiUrl);
             } else {
               throw Exception(data["message"] ?? "Unknown error occurred");
             }
           }
-        } catch (e) {
-          // Continue with retry logic
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
         }
-      }
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        await Future.delayed(delay);
       }
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+
   Future<Map<String, dynamic>> getOutputToday(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (String apiUrl in apiUrls) {
-        try {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
           final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_getOutputToday.php");
-          final response = await http.post(
+          final response = await httpClient.post(
             uri,
             body: {
               'idNumber': idNumber,
             },
-          ).timeout(requestTimeout);
+          );
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
             if (data["success"] == true) {
-              return data;
+              return _ApiResult(data, apiUrl);
             } else {
               throw Exception(data["message"] ?? "Unknown error occurred");
             }
           }
-        } catch (e) {
-          // Continue with retry logic
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
         }
-      }
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        await Future.delayed(delay);
       }
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
@@ -508,41 +653,44 @@ class ApiService {
     String defaultPhoneName = "ARK LOG PH";
 
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (String apiUrl in apiUrls) {
-        try {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
           final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchPhoneName.php");
-          final response = await http.post(
+          final response = await httpClient.post(
             uri,
             body: {
               'deviceId': deviceId,
             },
-          ).timeout(requestTimeout);
+          );
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
             if (data["success"] == true && data.containsKey("phoneName")) {
-              return data["phoneName"];
+              return _ApiResult(data["phoneName"], apiUrl);
             }
           }
-        } catch (e) {
-          // Continue with retry logic if there's an error
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
         }
-      }
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        await Future.delayed(delay);
       }
     }
     // Return default name if all attempts fail
     return defaultPhoneName;
   }
+
   Future<String> fetchManualLink(int linkID, int languageFlag) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (int i = 0; i < apiUrls.length; i++) {
-        String apiUrl = apiUrls[i];
-        try {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
           final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchManualLink.php?linkID=$linkID");
-          final response = await http.get(uri).timeout(requestTimeout);
+          final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
@@ -551,57 +699,67 @@ class ApiService {
               if (relativePath.isEmpty) {
                 throw Exception("No manual available for selected language");
               }
-              return Uri.parse(apiUrl).resolve(relativePath).toString();
+              return _ApiResult(Uri.parse(apiUrl).resolve(relativePath).toString(), apiUrl);
             } else {
               throw Exception(data["error"]);
             }
           }
-        } catch (e) {
-          String errorMessage = "Error accessing $apiUrl on attempt $attempt";
-          print(errorMessage);
+          throw Exception("HTTP ${response.statusCode}");
+        });
 
-          if (i == 0 && apiUrls.length > 1) {
-            print("Falling back to ${apiUrls[1]}");
-          }
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          print("Waiting for ${delay.inSeconds} seconds before retrying...");
+          await Future.delayed(delay);
         }
-      }
-
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        print("Waiting for ${delay.inSeconds} seconds before retrying...");
-        await Future.delayed(delay);
       }
     }
 
     String finalError = "All API URLs are unreachable after $maxRetries attempts";
+    _showToast(finalError);
     throw Exception(finalError);
   }
+
   Future<bool> updateLanguageFlag(String idNumber, int languageFlag) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      for (String apiUrl in apiUrls) {
-        try {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
           final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_updateLanguageFlag.php");
-          final response = await http.post(
+          final response = await httpClient.post(
             uri,
             body: {
               'idNumber': idNumber,
               'languageFlag': languageFlag.toString(),
             },
-          ).timeout(requestTimeout);
+          );
 
           if (response.statusCode == 200) {
             final responseData = jsonDecode(response.body);
-            return responseData["success"] == true;
+            return _ApiResult(responseData["success"] == true, apiUrl);
           }
-        } catch (e) {
-          // print("Error accessing $apiUrl on attempt $attempt: $e");
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
         }
-      }
-      if (attempt < maxRetries) {
-        final delay = initialRetryDelay * (1 << (attempt - 1));
-        await Future.delayed(delay);
       }
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+}
+
+// Helper class to track which API URL was used
+class _ApiResult<T> {
+  final T value;
+  final String apiUrlUsed;
+
+  _ApiResult(this.value, this.apiUrlUsed);
 }
