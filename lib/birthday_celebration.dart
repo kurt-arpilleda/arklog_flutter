@@ -13,6 +13,10 @@ class BirthdayCelebration extends StatefulWidget {
     this.languageFlag = 1,
   }) : super(key: key);
 
+  static void close(BuildContext context) {
+    Navigator.of(context, rootNavigator: true).pop();
+  }
+
   @override
   _BirthdayCelebrationState createState() => _BirthdayCelebrationState();
 }
@@ -32,7 +36,7 @@ class _BirthdayCelebrationState extends State<BirthdayCelebration>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 10),
+      duration: const Duration(seconds: 8),
     )
       ..addListener(() {
         _updateBalloons();

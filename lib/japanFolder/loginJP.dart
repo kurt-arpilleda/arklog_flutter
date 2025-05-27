@@ -15,6 +15,7 @@ import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
+import '../birthday_celebration.dart';
 
 class LoginScreenJP extends StatefulWidget {
   const LoginScreenJP({super.key});
@@ -317,7 +318,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
             ? _formatTimeIn(timeInData["latestTimeIn"])
             : null;
 
-        int languageFlag = profileData["languageFlag"] ?? 2; // Default to 2 if not set
+        int languageFlag = profileData["languageFlag"] ?? 2; // Default to 1 if not set
         String language = languageFlag == 2 ? "ja" : "en";
         await _updateLanguage(language);
 
@@ -328,6 +329,36 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
           _currentIdNumber = idNumber;
           _latestTimeIn = latestTimeIn;
         });
+
+        // Check if today is the user's birthday (only for exclusive users)
+        if (!_isExclusiveUser && profileData["birthdate"] != null) {
+          final birthdate = DateTime.parse(profileData["birthdate"]);
+          final today = DateTime.now();
+          if (birthdate.month == today.month && birthdate.day == today.day) {
+            // Close any existing birthday celebration
+            if (Navigator.of(context).canPop()) {
+              BirthdayCelebration.close(context);
+            }
+
+            // Show new birthday celebration
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              showDialog(
+                context: context,
+                barrierColor: Colors.black.withOpacity(0.5),
+                barrierDismissible: false,
+                builder: (context) {
+                  return BirthdayCelebration(
+                    name: profileData["firstName"],
+                    languageFlag: profileData["languageFlag"] ?? 2,
+                    onFinish: () {
+                      Navigator.of(context).pop();
+                    },
+                  );
+                },
+              );
+            });
+          }
+        }
       }
     } catch (e) {
       print("Error fetching profile: $e");
@@ -960,12 +991,67 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         );
 
         // Fetch profile using actual ID
-        await _fetchProfile(actualIdNumber);
-        setState(() {
-          _isLoggedIn = true;
-          _currentIdNumber = actualIdNumber;
-          _idController.text = actualIdNumber;
-        });
+        final profileData = await _apiService.fetchProfile(actualIdNumber);
+
+        if (profileData["success"] == true) {
+          String profilePictureFileName = profileData["picture"];
+
+          String primaryUrl = "${ApiServiceJP.apiUrls[0]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
+          bool isPrimaryUrlValid = await _isImageAvailable(primaryUrl);
+
+          String fallbackUrl = "${ApiServiceJP.apiUrls[1]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
+          bool isFallbackUrlValid = await _isImageAvailable(fallbackUrl);
+
+          // Fetch timeIn records
+          final timeInData = await _apiService.fetchTimeIns(actualIdNumber);
+          String? latestTimeIn = timeInData["latestTimeIn"] != null
+              ? _formatTimeIn(timeInData["latestTimeIn"])
+              : null;
+
+          int languageFlag = profileData["languageFlag"] ?? 2; // Default to 2 if not set
+          String language = languageFlag == 2 ? "ja" : "en";
+          await _updateLanguage(language);
+
+          setState(() {
+            _firstName = profileData["firstName"];
+            _surName = profileData["surName"];
+            _profilePictureUrl = isPrimaryUrlValid ? primaryUrl : isFallbackUrlValid ? fallbackUrl : null;
+            _currentIdNumber = actualIdNumber;
+            _latestTimeIn = latestTimeIn;
+            _isLoggedIn = true;
+            _idController.text = actualIdNumber;
+          });
+
+          // Check for birthday celebration only during login
+          if (profileData["birthdate"] != null) {
+            final birthdate = DateTime.parse(profileData["birthdate"]);
+            final today = DateTime.now();
+            if (birthdate.month == today.month && birthdate.day == today.day) {
+              // Close any existing birthday celebration
+              if (Navigator.of(context).canPop()) {
+                BirthdayCelebration.close(context);
+              }
+
+              // Show new birthday celebration
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                showDialog(
+                  context: context,
+                  barrierColor: Colors.black.withOpacity(0.5),
+                  barrierDismissible: false,
+                  builder: (context) {
+                    return BirthdayCelebration(
+                      name: profileData["firstName"],
+                      languageFlag: profileData["languageFlag"] ?? 2,
+                      onFinish: () {
+                        Navigator.of(context).pop();
+                      },
+                    );
+                  },
+                );
+              });
+            }
+          }
+        }
 
         // Show late or relogin dialog if applicable
         if (wtrResponse['isLate'] == true || wtrResponse['isRelogin'] == true) {
@@ -1034,7 +1120,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     }
   }
   Future<void> _logout() async {
-    final exemptedIds = ['1243', '0939', '1163', '1239', '1288', '123s8'];
+    final exemptedIds = ['1243', '0939', '1163', '1239', '1288'];
     final isExempted = exemptedIds.contains(_currentIdNumber);
 
     // Only show QR scanner for non exempted users
