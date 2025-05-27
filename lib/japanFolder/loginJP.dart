@@ -119,7 +119,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
             final loginSuccess = await _apiService.autoLoginExclusiveUser(idNumber, _deviceId!);
 
             if (loginSuccess) {
-              await _fetchProfile(idNumber);
+              await _fetchProfile(idNumber, isExclusiveUser: true);
               setState(() {
                 _isLoggedIn = true;
                 _currentIdNumber = idNumber;
@@ -300,7 +300,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     }
   }
 
-  Future<void> _fetchProfile(String idNumber) async {
+  Future<void> _fetchProfile(String idNumber, {bool isExclusiveUser = false}) async {
     try {
       final profileData = await _apiService.fetchProfile(idNumber);
       if (profileData["success"] == true) {
@@ -331,7 +331,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         });
 
         // Check if today is the user's birthday (only for exclusive users)
-        if (!_isExclusiveUser && profileData["birthdate"] != null) {
+        if (profileData["birthdate"] != null && isExclusiveUser) {
           final birthdate = DateTime.parse(profileData["birthdate"]);
           final today = DateTime.now();
           if (birthdate.month == today.month && birthdate.day == today.day) {
