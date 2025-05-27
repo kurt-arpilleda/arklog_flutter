@@ -49,6 +49,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   Timer? _timer;
   bool _isExclusiveUser = false;
   bool _isFlashOn = false;
+  bool _isQrScannerOpen = false;
   String _phoneName = 'ARK LOG PH';
   @override
   void initState() {
@@ -153,8 +154,14 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // App has come back to the foreground
-      _initializeApp(); // Re-run your init logic
+      if (_isQrScannerOpen && Navigator.canPop(context)) {
+        Navigator.of(context).pop(false); // Close the QR scanner dialog
+      }
+      _initializeApp();
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      if (_isQrScannerOpen && Navigator.canPop(context)) {
+        Navigator.of(context).pop(false); // Close the QR scanner dialog
+      }
     }
   }
   void _updateDateTime() {
@@ -1199,6 +1206,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   Future<bool?> _showQrScanner() async {
     _qrErrorMessage = null;
     _isFlashOn = false;
+    _isQrScannerOpen = true;
 
     return await showDialog<bool>(
       context: context,
@@ -1342,6 +1350,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       },
     ).then((value) {
       _isFlashOn = false;
+      _isQrScannerOpen = false;
       return value;
     });
   }
