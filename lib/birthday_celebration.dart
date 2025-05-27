@@ -123,6 +123,27 @@ class _BirthdayCelebrationState extends State<BirthdayCelebration>
                 );
               }).toList(),
 
+              // Close (X) icon
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 8,
+                right: 8,
+                child: GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.8),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                  ),
+                ),
+              ),
+
               // Cake
               if (_showCake)
                 Center(
@@ -157,7 +178,8 @@ class _BirthdayCelebrationState extends State<BirthdayCelebration>
                           duration: const Duration(milliseconds: 500),
                           curve: Curves.elasticOut,
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                            padding:
+                            const EdgeInsets.symmetric(horizontal: 24.0),
                             child: Text(
                               birthdayMessage,
                               textAlign: TextAlign.center,
