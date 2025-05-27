@@ -14,6 +14,7 @@ import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
+import 'birthday_celebration.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -328,6 +329,31 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           _currentIdNumber = idNumber;
           _latestTimeIn = latestTimeIn;
         });
+
+        // Check if today is the user's birthday
+        if (profileData["birthdate"] != null) {
+          final birthdate = DateTime.parse(profileData["birthdate"]);
+          final today = DateTime.now();
+          if (birthdate.month == today.month && birthdate.day == today.day) {
+            // Show birthday celebration
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              showDialog(
+                context: context,
+                barrierColor: Colors.black.withOpacity(0.5),
+                barrierDismissible: false,
+                builder: (context) {
+                  return BirthdayCelebration(
+                    name: profileData["firstName"],
+                    languageFlag: profileData["languageFlag"] ?? 1,
+                    onFinish: () {
+                      Navigator.of(context).pop();
+                    },
+                  );
+                },
+              );
+            });
+          }
+        }
       }
     } catch (e) {
       print("Error fetching profile: $e");

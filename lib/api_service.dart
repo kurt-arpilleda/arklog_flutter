@@ -71,7 +71,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchProfile.php?idNumber=$idNumber");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI2/kurt_fetchProfile.php?idNumber=$idNumber");
           final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
