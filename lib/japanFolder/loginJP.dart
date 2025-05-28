@@ -348,7 +348,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                 builder: (context) {
                   return BirthdayCelebration(
                     name: profileData["firstName"],
-                    languageFlag: profileData["languageFlag"] ?? 1,
+                    languageFlag: profileData["languageFlag"] ?? 2,
                     onFinish: () {
                       Navigator.of(context).pop();
                     },
@@ -1039,7 +1039,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                   builder: (context) {
                     return BirthdayCelebration(
                       name: profileData["firstName"],
-                      languageFlag: profileData["languageFlag"] ?? 1,
+                      languageFlag: profileData["languageFlag"] ?? 2,
                       onFinish: () {
                         Navigator.of(context).pop();
                       },
