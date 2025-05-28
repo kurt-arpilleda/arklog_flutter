@@ -351,6 +351,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                     onFinish: () {
                       Navigator.of(context).pop();
                     },
+                    duration: const Duration(seconds: 6),
                   );
                 },
               );
@@ -1041,6 +1042,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                       onFinish: () {
                         Navigator.of(context).pop();
                       },
+                      duration: const Duration(seconds: 9),
                     );
                   },
                 );

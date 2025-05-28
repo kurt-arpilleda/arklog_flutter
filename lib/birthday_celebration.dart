@@ -5,12 +5,14 @@ class BirthdayCelebration extends StatefulWidget {
   final String name;
   final int languageFlag;
   final VoidCallback onFinish;
+  final Duration duration;
 
   const BirthdayCelebration({
     Key? key,
     required this.name,
     required this.onFinish,
     this.languageFlag = 1,
+    this.duration = const Duration(seconds: 9),
   }) : super(key: key);
 
   static void close(BuildContext context) {
@@ -36,7 +38,7 @@ class _BirthdayCelebrationState extends State<BirthdayCelebration>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 8),
+      duration: widget.duration,
     )
       ..addListener(() {
         _updateBalloons();
