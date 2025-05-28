@@ -132,7 +132,7 @@ class _BirthdayCelebrationState extends State<BirthdayCelebration>
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.8),
+                      color: Colors.black.withOpacity(0.9),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(

@@ -329,8 +329,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           _currentIdNumber = idNumber;
           _latestTimeIn = latestTimeIn;
         });
-
-        // Check if today is the user's birthday (only for exclusive users)
         if (profileData["birthdate"] != null) {
           final birthdate = DateTime.parse(profileData["birthdate"]);
           final today = DateTime.now();
@@ -1021,8 +1019,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
             _isLoggedIn = true;
             _idController.text = actualIdNumber;
           });
-
-          // Check for birthday celebration only during login
           if (profileData["birthdate"] != null) {
             final birthdate = DateTime.parse(profileData["birthdate"]);
             final today = DateTime.now();
