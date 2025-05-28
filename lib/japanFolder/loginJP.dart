@@ -352,7 +352,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                     onFinish: () {
                       Navigator.of(context).pop();
                     },
-                    duration: const Duration(seconds: 6),
+                    duration: const Duration(seconds: 5),
                   );
                 },
               );
