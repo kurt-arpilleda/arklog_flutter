@@ -653,7 +653,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              contentPadding: EdgeInsets.all(24),
+              contentPadding: EdgeInsets.all(16),
               actionsPadding: EdgeInsets.only(right: 16, bottom: 16),
               content: Container(
                 width: dialogWidth,
@@ -668,25 +668,36 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                             (_profilePictureUrl != null || _firstName != null || _surName != null))
                           Column(
                             children: [
-                              if (_profilePictureUrl != null)
-                                CircleAvatar(
-                                  radius: 35,
-                                  backgroundImage: NetworkImage(_profilePictureUrl!),
-                                  backgroundColor: Colors.grey[300],
-                                ),
-                              SizedBox(height: 10),
-                              if (_firstName != null && _surName != null)
-                                Text(
-                                  '$_firstName $_surName',
-                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                                  textAlign: TextAlign.center,
-                                ),
-                              SizedBox(height: 4),
-                              Text(
-                                currentDate,
-                                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  if (_profilePictureUrl != null)
+                                    CircleAvatar(
+                                      radius: 30,
+                                      backgroundImage: NetworkImage(_profilePictureUrl!),
+                                      backgroundColor: Colors.grey[300],
+                                    ),
+                                  SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        if (_firstName != null && _surName != null)
+                                          Text(
+                                            '$_firstName $_surName',
+                                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                                          ),
+                                        SizedBox(height: 2),
+                                        Text(
+                                          currentDate,
+                                          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
                               ),
-                              SizedBox(height: 20),
+                              SizedBox(height: 16),
 
                               _buildInfoCard(
                                 title: _currentLanguage == 'ja' ? '本日の実績' : 'Today\'s Output',
@@ -696,17 +707,17 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                                       _currentLanguage == 'ja' ? '生産数量' : 'Output QTY',
                                       outputToday['outputQty'].toString(),
                                     ),
-                                    SizedBox(height: 8),
+                                    SizedBox(height: 4),
                                     _buildInfoRow(
-                                      _currentLanguage == 'ja' ? '標準時間' : 'ST Time',
+                                      _currentLanguage == 'ja' ? '標準時間' : 'Total ST',
                                       outputToday['stTime'],
                                     ),
-                                    SizedBox(height: 8),
+                                    SizedBox(height: 4),
                                     _buildInfoRow(
                                       _currentLanguage == 'ja' ? '不良数量' : 'NG QTY',
                                       outputToday['ngQty'].toString(),
                                     ),
-                                    SizedBox(height: 8),
+                                    SizedBox(height: 4),
                                     _buildInfoRow(
                                       _currentLanguage == 'ja' ? '不良件数' : 'NG Count',
                                       outputToday['ngCount'].toString(),
@@ -717,7 +728,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                                 titleColor: Colors.blue.shade800,
                                 centerTitle: true,
                               ),
-                              SizedBox(height: 16),
+                              SizedBox(height: 8),
 
                               if (workTimeInfo.isNotEmpty)
                                 _buildInfoCard(
@@ -728,17 +739,17 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                                         _currentLanguage == 'ja' ? '必要労働時間' : 'Work Required',
                                         '${workTimeInfo['workRequired']} h',
                                       ),
-                                      SizedBox(height: 8),
+                                      SizedBox(height: 4),
                                       _buildInfoRow(
                                         _currentLanguage == 'ja' ? '実労働時間' : 'Worked Hours',
                                         '${workTimeInfo['workedHours']} h',
                                       ),
-                                      SizedBox(height: 8),
+                                      SizedBox(height: 4),
                                       _buildInfoRow(
                                         _currentLanguage == 'ja' ? '残業時間' : 'Over-Time',
                                         '${workTimeInfo['overTime']} h',
                                       ),
-                                      SizedBox(height: 8),
+                                      SizedBox(height: 4),
                                       _buildInfoRow(
                                         _currentLanguage == 'ja' ? '遅刻回数' : 'Late Count',
                                         workTimeInfo['lateCount'].toString(),
@@ -749,18 +760,18 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                                   titleColor: Colors.grey.shade800,
                                   centerTitle: true,
                                 ),
-                              SizedBox(height: 24),
+                              SizedBox(height: 12),
                             ],
                           ),
                         Container(
-                          padding: EdgeInsets.all(12),
+                          padding: EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: Colors.amber.shade100,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.warning_amber_rounded, color: Colors.amber.shade900),
+                              Icon(Icons.warning_amber_rounded, color: Colors.amber.shade900, size: 20),
                               SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -770,13 +781,14 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                                   style: TextStyle(
                                     color: Colors.amber.shade900,
                                     fontWeight: FontWeight.w600,
+                                    fontSize: 13,
                                   ),
                                 ),
                               )
                             ],
                           ),
                         ),
-                        SizedBox(height: 20),
+                        SizedBox(height: 16),
 
                         AnimatedBuilder(
                           animation: _shakeController,
@@ -788,11 +800,11 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                           },
                           child: Wrap(
                             key: _choiceChipsKey,
-                            spacing: 12,
+                            spacing: 8,
                             alignment: WrapAlignment.center,
                             children: [
                               ChoiceChip(
-                                label: Text('Yes'),
+                                label: Text('Yes', style: TextStyle(fontSize: 13)),
                                 selected: phoneCondition == 'Yes',
                                 selectedColor: Colors.green.shade100,
                                 onSelected: (_) {
@@ -800,7 +812,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                                 },
                               ),
                               ChoiceChip(
-                                label: Text('No'),
+                                label: Text('No', style: TextStyle(fontSize: 13)),
                                 selected: phoneCondition == 'No',
                                 selectedColor: Colors.red.shade100,
                                 onSelected: (_) {
@@ -822,7 +834,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                         ),
 
                         if (phoneCondition == 'No') ...[
-                          SizedBox(height: 20),
+                          SizedBox(height: 16),
                           TextFormField(
                             controller: _explanationController,
                             focusNode: _explanationFocusNode,
@@ -830,10 +842,13 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                               labelText: _currentLanguage == 'ja'
                                   ? '問題の内容を説明してください'
                                   : 'Please explain the issue',
+                              labelStyle: TextStyle(fontSize: 12),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(10),
                               ),
+                              contentPadding: EdgeInsets.all(12),
                             ),
+                            style: TextStyle(fontSize: 13),
                             maxLines: 3,
                             validator: (value) {
                               if (phoneCondition == 'No' && (value == null || value.trim().isEmpty)) {
@@ -855,13 +870,15 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                   onPressed: () => Navigator.of(context).pop(null),
                   child: Text(
                     _currentLanguage == 'ja' ? '閉じる' : 'Close',
+                    style: TextStyle(fontSize: 14),
                   ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueAccent,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   ),
                   onPressed: () async {
                     if (phoneCondition == null) {
@@ -891,6 +908,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                     isExempted
                         ? (_currentLanguage == 'ja' ? '確認' : 'Confirm')
                         : (_currentLanguage == 'ja' ? 'スキャン' : 'Scan'),
+                    style: TextStyle(fontSize: 14),
                   ),
                 ),
               ],
@@ -901,28 +919,12 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildTimeRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: TextStyle(fontWeight: FontWeight.w500)),
-        Text(
-          value,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.blueGrey,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildInfoRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(fontWeight: FontWeight.w500)),
-        Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+        Text(label, style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+        Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo, fontSize: 13)),
       ],
     );
   }
@@ -936,10 +938,10 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   }) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
         crossAxisAlignment:
@@ -949,11 +951,11 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
             title,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 16,
+              fontSize: 15,
               color: titleColor,
             ),
           ),
-          SizedBox(height: 12),
+          SizedBox(height: 8),
           content,
         ],
       ),
