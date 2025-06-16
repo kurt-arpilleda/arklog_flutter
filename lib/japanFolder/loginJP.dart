@@ -1639,7 +1639,6 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                   ),
                 ),
               ),
-
             ],
           ),
         ),
