@@ -754,6 +754,45 @@ class ApiService {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+  Future<Map<String, dynamic>> getWorkTimeInfo(String idNumber) async {
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_getWorkTimeInfo.php");
+          final response = await httpClient.post(
+            uri,
+            body: {
+              'idNumber': idNumber,
+            },
+          );
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            if (data["success"] == true) {
+              return _ApiResult({
+                "workRequired": data["workRequired"] ?? '0.0',
+                "workedHours": data["workedHours"] ?? '0.0',
+                "overTime": data["overTime"] ?? '0.0',
+                "lateCount": data["lateCount"] ?? '0',
+              }, apiUrl);
+            } else {
+              throw Exception(data["message"] ?? "Unknown error occurred");
+            }
+          }
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
+        }
+      }
+    }
+    throw Exception("Both API URLs are unreachable after $maxRetries attempts");
+  }
 }
 
 // Helper class to track which API URL was used

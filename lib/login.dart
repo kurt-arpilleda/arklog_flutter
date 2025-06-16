@@ -614,13 +614,13 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     final currentDate = DateFormat('MMMM d, y').format(DateTime.now());
     final isExempted = exemptedIds.contains(_currentIdNumber);
 
-    Map<String, dynamic> shiftTimeInfo = {};
+    Map<String, dynamic> workTimeInfo = {};
     Map<String, dynamic> outputToday = {'totalCount': 0, 'totalQty': 0};
 
     try {
       if (_currentIdNumber != null) {
         setState(() => _isLoading = true);
-        shiftTimeInfo = await _apiService.getShiftTimeInfo(_currentIdNumber!);
+        workTimeInfo = await _apiService.getWorkTimeInfo(_currentIdNumber!);
         outputToday = await _apiService.getOutputToday(_currentIdNumber!);
         setState(() => _isLoading = false);
       }
@@ -709,19 +709,29 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                               ),
                               SizedBox(height: 16),
 
-                              if (shiftTimeInfo.isNotEmpty)
+                              if (workTimeInfo.isNotEmpty)
                                 _buildInfoCard(
-                                  title: _currentLanguage == 'ja' ? 'タイムログ' : 'Time Log',
+                                  title: _currentLanguage == 'ja' ? '勤務時間情報' : 'Work Time Info',
                                   content: Column(
                                     children: [
-                                      _buildTimeRow(
-                                          _currentLanguage == 'ja' ? '出勤時間' : 'Time In',
-                                          shiftTimeInfo['timeIn'] ?? (_currentLanguage == 'ja' ? '未登録' : 'N/A')
+                                      _buildInfoRow(
+                                        _currentLanguage == 'ja' ? '必要労働時間' : 'Work Required',
+                                        '${workTimeInfo['workRequired']} h',
                                       ),
                                       SizedBox(height: 8),
-                                      _buildTimeRow(
-                                          _currentLanguage == 'ja' ? 'ログイン時間' : 'Login',
-                                          shiftTimeInfo['loginTime'] ?? (_currentLanguage == 'ja' ? '未登録' : 'N/A')
+                                      _buildInfoRow(
+                                        _currentLanguage == 'ja' ? '実労働時間' : 'Worked Hours',
+                                        '${workTimeInfo['workedHours']} h',
+                                      ),
+                                      SizedBox(height: 8),
+                                      _buildInfoRow(
+                                        _currentLanguage == 'ja' ? '残業時間' : 'Over-Time',
+                                        '${workTimeInfo['overTime']} h',
+                                      ),
+                                      SizedBox(height: 8),
+                                      _buildInfoRow(
+                                        _currentLanguage == 'ja' ? '遅刻回数' : 'Late Count',
+                                        workTimeInfo['lateCount'].toString(),
                                       ),
                                     ],
                                   ),
