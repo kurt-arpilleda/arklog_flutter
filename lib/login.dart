@@ -615,13 +615,13 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     final isExempted = exemptedIds.contains(_currentIdNumber);
 
     Map<String, dynamic> workTimeInfo = {};
-    Map<String, dynamic> outputToday = {'totalCount': 0, 'totalQty': 0};
+    Map<String, dynamic> outputToday = {'outputQty': 0, 'stTime': '00:00:00', 'ngQty': 0, 'ngCount': 0};
 
     try {
       if (_currentIdNumber != null) {
         setState(() => _isLoading = true);
         workTimeInfo = await _apiService.getWorkTimeInfo(_currentIdNumber!);
-        outputToday = await _apiService.getOutputToday(_currentIdNumber!);
+        outputToday = await _apiService.getTodayOutput(_currentIdNumber!);
         setState(() => _isLoading = false);
       }
     } catch (e) {
@@ -689,22 +689,32 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                               SizedBox(height: 20),
 
                               _buildInfoCard(
-                                title: _currentLanguage == 'ja' ? '本日の実績' : 'Your Output Today',
+                                title: _currentLanguage == 'ja' ? '本日の実績' : 'Today\'s Output',
                                 content: Column(
                                   children: [
                                     _buildInfoRow(
-                                        _currentLanguage == 'ja' ? 'アイテム数' : 'Item Count',
-                                        outputToday['totalCount'].toString()
+                                      _currentLanguage == 'ja' ? '生産数量' : 'Output QTY',
+                                      outputToday['outputQty'].toString(),
                                     ),
                                     SizedBox(height: 8),
                                     _buildInfoRow(
-                                        _currentLanguage == 'ja' ? '総数量' : 'Item Quantity',
-                                        outputToday['totalQty'].toString()
+                                      _currentLanguage == 'ja' ? '標準時間' : 'ST Time',
+                                      outputToday['stTime'],
+                                    ),
+                                    SizedBox(height: 8),
+                                    _buildInfoRow(
+                                      _currentLanguage == 'ja' ? '不良数量' : 'NG QTY',
+                                      outputToday['ngQty'].toString(),
+                                    ),
+                                    SizedBox(height: 8),
+                                    _buildInfoRow(
+                                      _currentLanguage == 'ja' ? '不良件数' : 'NG Count',
+                                      outputToday['ngCount'].toString(),
                                     ),
                                   ],
                                 ),
-                                backgroundColor: Colors.indigo.shade50,
-                                titleColor: Colors.indigo.shade800,
+                                backgroundColor: Colors.blue.shade50,
+                                titleColor: Colors.blue.shade800,
                                 centerTitle: true,
                               ),
                               SizedBox(height: 16),
