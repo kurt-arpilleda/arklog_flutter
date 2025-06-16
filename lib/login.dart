@@ -52,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   bool _isFlashOn = false;
   bool _isQrScannerOpen = false;
   String _phoneName = 'ARK LOG PH';
-  static const List<String> exemptedIds = ['1243', '0939', '1163', '1239', '1288', '0001'];
+  static const List<String> exemptedIds = ['123s8', '0939', '1288', '1239', '1200', '0280', '0001'];
   @override
   void initState() {
     super.initState();
@@ -485,7 +485,10 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                             alignment: WrapAlignment.center,
                             children: [
                               ChoiceChip(
-                                label: Text('Yes', style: TextStyle(fontWeight: FontWeight.w500)),
+                                label: Text(
+                                    _currentLanguage == 'ja' ? 'はい' : 'Yes',
+                                    style: TextStyle(fontWeight: FontWeight.w500)
+                                ),
                                 selected: phoneCondition == 'Yes',
                                 selectedColor: Colors.green.shade100,
                                 onSelected: (_) {
@@ -493,7 +496,10 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                                 },
                               ),
                               ChoiceChip(
-                                label: Text('No', style: TextStyle(fontWeight: FontWeight.w500)),
+                                label: Text(
+                                    _currentLanguage == 'ja' ? 'いいえ' : 'No',
+                                    style: TextStyle(fontWeight: FontWeight.w500)
+                                ),
                                 selected: phoneCondition == 'No',
                                 selectedColor: Colors.red.shade100,
                                 onSelected: (_) {
@@ -804,7 +810,10 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                             alignment: WrapAlignment.center,
                             children: [
                               ChoiceChip(
-                                label: Text('Yes', style: TextStyle(fontSize: 13)),
+                                label: Text(
+                                    _currentLanguage == 'ja' ? 'はい' : 'Yes',
+                                    style: TextStyle(fontSize: 13)
+                                ),
                                 selected: phoneCondition == 'Yes',
                                 selectedColor: Colors.green.shade100,
                                 onSelected: (_) {
@@ -812,7 +821,10 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                                 },
                               ),
                               ChoiceChip(
-                                label: Text('No', style: TextStyle(fontSize: 13)),
+                                label: Text(
+                                    _currentLanguage == 'ja' ? 'いいえ' : 'No',
+                                    style: TextStyle(fontSize: 13)
+                                ),
                                 selected: phoneCondition == 'No',
                                 selectedColor: Colors.red.shade100,
                                 onSelected: (_) {

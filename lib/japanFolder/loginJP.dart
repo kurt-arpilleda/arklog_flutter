@@ -4,8 +4,8 @@ import 'dart:convert';
 import '../pdfViewer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'api_serviceJP.dart';
 import '../api_service.dart';
+import 'api_serviceJP.dart';
 import 'package:unique_identifier/unique_identifier.dart';
 import 'package:http/http.dart' as http;
 import '../auto_update.dart';
@@ -28,7 +28,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   final TextEditingController _idController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   final ApiServiceJP _apiService = ApiServiceJP();
-  final ApiService _apiServiceph = ApiService();
+  final ApiService _apiServicePH = ApiService();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   QRViewController? qrController;
@@ -54,6 +54,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   bool _isFlashOn = false;
   bool _isQrScannerOpen = false;
   String _phoneName = 'ARK LOG JP';
+  static const List<String> exemptedIds = ['1238', '0939', '1288', '1239', '1200', '0280', '0001'];
   @override
   void initState() {
     super.initState();
@@ -180,17 +181,18 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       });
     }
   }
+
   Future<void> _loadCurrentLanguage() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _currentLanguage = prefs.getString('languageJP') ?? 'ja'; // Default to 'en'
+      _currentLanguage = prefs.getString('languageJP') ?? 'ja'; // Default to 'ja'
     });
   }
 
   Future<void> _loadPhOrJp() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      _phOrJp = prefs.getString('phorjp') ?? 'ph';
+      _phOrJp = prefs.getString('phorjp') ?? 'jp';
     });
   }
 
@@ -210,6 +212,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       _currentLanguage = language;
     });
   }
+
   Future<void> _updatePhOrJp(String value) async {
     if ((value == 'ph' && _isCountryLoadingPh) || (value == 'jp' && _isCountryLoadingJp)) {
       return;
@@ -318,7 +321,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
             ? _formatTimeIn(timeInData["latestTimeIn"])
             : null;
 
-        int languageFlag = profileData["languageFlag"] ?? 2; // Default to 1 if not set
+        int languageFlag = profileData["languageFlag"] ?? 2;
         String language = languageFlag == 2 ? "ja" : "en";
         await _updateLanguage(language);
 
@@ -329,7 +332,6 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
           _currentIdNumber = idNumber;
           _latestTimeIn = latestTimeIn;
         });
-
         if (profileData["birthdate"] != null) {
           final birthdate = DateTime.parse(profileData["birthdate"]);
           final today = DateTime.now();
@@ -485,7 +487,10 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                             alignment: WrapAlignment.center,
                             children: [
                               ChoiceChip(
-                                label: Text('Yes', style: TextStyle(fontWeight: FontWeight.w500)),
+                                label: Text(
+                                    _currentLanguage == 'ja' ? 'はい' : 'Yes',
+                                    style: TextStyle(fontWeight: FontWeight.w500)
+                                ),
                                 selected: phoneCondition == 'Yes',
                                 selectedColor: Colors.green.shade100,
                                 onSelected: (_) {
@@ -493,7 +498,10 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                                 },
                               ),
                               ChoiceChip(
-                                label: Text('No', style: TextStyle(fontWeight: FontWeight.w500)),
+                                label: Text(
+                                    _currentLanguage == 'ja' ? 'いいえ' : 'No',
+                                    style: TextStyle(fontWeight: FontWeight.w500)
+                                ),
                                 selected: phoneCondition == 'No',
                                 selectedColor: Colors.red.shade100,
                                 onSelected: (_) {
@@ -612,15 +620,16 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     final GlobalKey _choiceChipsKey = GlobalKey();
 
     final currentDate = DateFormat('MMMM d, y').format(DateTime.now());
+    final isExempted = exemptedIds.contains(_currentIdNumber);
 
-    Map<String, dynamic> shiftTimeInfo = {};
-    Map<String, dynamic> outputToday = {'totalCount': 0, 'totalQty': 0};
+    Map<String, dynamic> workTimeInfo = {};
+    Map<String, dynamic> outputToday = {'outputQty': 0, 'stTime': '00:00:00', 'ngQty': 0, 'ngCount': 0};
 
     try {
       if (_currentIdNumber != null) {
         setState(() => _isLoading = true);
-        shiftTimeInfo = await _apiService.getShiftTimeInfo(_currentIdNumber!);
-        outputToday = await _apiService.getOutputToday(_currentIdNumber!);
+        workTimeInfo = await _apiService.getWorkTimeInfo(_currentIdNumber!);
+        outputToday = await _apiService.getTodayOutput(_currentIdNumber!);
         setState(() => _isLoading = false);
       }
     } catch (e) {
@@ -652,7 +661,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
 
             return AlertDialog(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              contentPadding: EdgeInsets.all(24),
+              contentPadding: EdgeInsets.all(16),
               actionsPadding: EdgeInsets.only(right: 16, bottom: 16),
               content: Container(
                 width: dialogWidth,
@@ -667,60 +676,91 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                             (_profilePictureUrl != null || _firstName != null || _surName != null))
                           Column(
                             children: [
-                              if (_profilePictureUrl != null)
-                                CircleAvatar(
-                                  radius: 35,
-                                  backgroundImage: NetworkImage(_profilePictureUrl!),
-                                  backgroundColor: Colors.grey[300],
-                                ),
-                              SizedBox(height: 10),
-                              if (_firstName != null && _surName != null)
-                                Text(
-                                  '$_firstName $_surName',
-                                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-                                  textAlign: TextAlign.center,
-                                ),
-                              SizedBox(height: 4),
-                              Text(
-                                currentDate,
-                                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                              ),
-                              SizedBox(height: 20),
-
-                              _buildInfoCard(
-                                title: _currentLanguage == 'ja' ? '本日の実績' : 'Your Output Today',
-                                content: Column(
-                                  children: [
-                                    _buildInfoRow(
-                                        _currentLanguage == 'ja' ? 'アイテム数' : 'Item Count',
-                                        outputToday['totalCount'].toString()
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  if (_profilePictureUrl != null)
+                                    CircleAvatar(
+                                      radius: 30,
+                                      backgroundImage: NetworkImage(_profilePictureUrl!),
+                                      backgroundColor: Colors.grey[300],
                                     ),
-                                    SizedBox(height: 8),
-                                    _buildInfoRow(
-                                        _currentLanguage == 'ja' ? '総数量' : 'Item Quantity',
-                                        outputToday['totalQty'].toString()
+                                  SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        if (_firstName != null && _surName != null)
+                                          Text(
+                                            '$_firstName $_surName',
+                                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                                          ),
+                                        SizedBox(height: 2),
+                                        Text(
+                                          currentDate,
+                                          style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                                backgroundColor: Colors.indigo.shade50,
-                                titleColor: Colors.indigo.shade800,
-                                centerTitle: true,
+                                  ),
+                                ],
                               ),
                               SizedBox(height: 16),
 
-                              if (shiftTimeInfo.isNotEmpty)
+                              _buildInfoCard(
+                                title: _currentLanguage == 'ja' ? '本日の実績' : 'Today\'s Output',
+                                content: Column(
+                                  children: [
+                                    _buildInfoRow(
+                                      _currentLanguage == 'ja' ? '生産数量' : 'Output QTY',
+                                      outputToday['outputQty'].toString(),
+                                    ),
+                                    SizedBox(height: 4),
+                                    _buildInfoRow(
+                                      _currentLanguage == 'ja' ? '標準時間' : 'Total ST',
+                                      outputToday['stTime'],
+                                    ),
+                                    SizedBox(height: 4),
+                                    _buildInfoRow(
+                                      _currentLanguage == 'ja' ? '不良数量' : 'NG QTY',
+                                      outputToday['ngQty'].toString(),
+                                    ),
+                                    SizedBox(height: 4),
+                                    _buildInfoRow(
+                                      _currentLanguage == 'ja' ? '不良件数' : 'NG Count',
+                                      outputToday['ngCount'].toString(),
+                                    ),
+                                  ],
+                                ),
+                                backgroundColor: Colors.blue.shade50,
+                                titleColor: Colors.blue.shade800,
+                                centerTitle: true,
+                              ),
+                              SizedBox(height: 8),
+
+                              if (workTimeInfo.isNotEmpty)
                                 _buildInfoCard(
-                                  title: _currentLanguage == 'ja' ? 'タイムログ' : 'Time Log',
+                                  title: _currentLanguage == 'ja' ? '勤務時間情報' : 'Work Time Info',
                                   content: Column(
                                     children: [
-                                      _buildTimeRow(
-                                          _currentLanguage == 'ja' ? '出勤時間' : 'Time In',
-                                          shiftTimeInfo['timeIn'] ?? (_currentLanguage == 'ja' ? '未登録' : 'N/A')
+                                      _buildInfoRow(
+                                        _currentLanguage == 'ja' ? '必要労働時間' : 'Work Required',
+                                        '${workTimeInfo['workRequired']} h',
                                       ),
-                                      SizedBox(height: 8),
-                                      _buildTimeRow(
-                                          _currentLanguage == 'ja' ? 'ログイン時間' : 'Login',
-                                          shiftTimeInfo['loginTime'] ?? (_currentLanguage == 'ja' ? '未登録' : 'N/A')
+                                      SizedBox(height: 4),
+                                      _buildInfoRow(
+                                        _currentLanguage == 'ja' ? '実労働時間' : 'Worked Hours',
+                                        '${workTimeInfo['workedHours']} h',
+                                      ),
+                                      SizedBox(height: 4),
+                                      _buildInfoRow(
+                                        _currentLanguage == 'ja' ? '残業時間' : 'Over-Time',
+                                        '${workTimeInfo['overTime']} h',
+                                      ),
+                                      SizedBox(height: 4),
+                                      _buildInfoRow(
+                                        _currentLanguage == 'ja' ? '遅刻回数' : 'Late Count',
+                                        workTimeInfo['lateCount'].toString(),
                                       ),
                                     ],
                                   ),
@@ -728,18 +768,18 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                                   titleColor: Colors.grey.shade800,
                                   centerTitle: true,
                                 ),
-                              SizedBox(height: 24),
+                              SizedBox(height: 12),
                             ],
                           ),
                         Container(
-                          padding: EdgeInsets.all(12),
+                          padding: EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             color: Colors.amber.shade100,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(10),
                           ),
                           child: Row(
                             children: [
-                              Icon(Icons.warning_amber_rounded, color: Colors.amber.shade900),
+                              Icon(Icons.warning_amber_rounded, color: Colors.amber.shade900, size: 20),
                               SizedBox(width: 8),
                               Expanded(
                                 child: Text(
@@ -749,13 +789,14 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                                   style: TextStyle(
                                     color: Colors.amber.shade900,
                                     fontWeight: FontWeight.w600,
+                                    fontSize: 13,
                                   ),
                                 ),
                               )
                             ],
                           ),
                         ),
-                        SizedBox(height: 20),
+                        SizedBox(height: 16),
 
                         AnimatedBuilder(
                           animation: _shakeController,
@@ -767,11 +808,14 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                           },
                           child: Wrap(
                             key: _choiceChipsKey,
-                            spacing: 12,
+                            spacing: 8,
                             alignment: WrapAlignment.center,
                             children: [
                               ChoiceChip(
-                                label: Text('Yes'),
+                                label: Text(
+                                    _currentLanguage == 'ja' ? 'はい' : 'Yes',
+                                    style: TextStyle(fontSize: 13)
+                                ),
                                 selected: phoneCondition == 'Yes',
                                 selectedColor: Colors.green.shade100,
                                 onSelected: (_) {
@@ -779,7 +823,10 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                                 },
                               ),
                               ChoiceChip(
-                                label: Text('No'),
+                                label: Text(
+                                    _currentLanguage == 'ja' ? 'いいえ' : 'No',
+                                    style: TextStyle(fontSize: 13)
+                                ),
                                 selected: phoneCondition == 'No',
                                 selectedColor: Colors.red.shade100,
                                 onSelected: (_) {
@@ -801,7 +848,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                         ),
 
                         if (phoneCondition == 'No') ...[
-                          SizedBox(height: 20),
+                          SizedBox(height: 16),
                           TextFormField(
                             controller: _explanationController,
                             focusNode: _explanationFocusNode,
@@ -809,10 +856,13 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                               labelText: _currentLanguage == 'ja'
                                   ? '問題の内容を説明してください'
                                   : 'Please explain the issue',
+                              labelStyle: TextStyle(fontSize: 12),
                               border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(10),
                               ),
+                              contentPadding: EdgeInsets.all(12),
                             ),
+                            style: TextStyle(fontSize: 13),
                             maxLines: 3,
                             validator: (value) {
                               if (phoneCondition == 'No' && (value == null || value.trim().isEmpty)) {
@@ -833,14 +883,16 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(null),
                   child: Text(
-                    _currentLanguage == 'ja' ? 'キャンセル' : 'Cancel',
+                    _currentLanguage == 'ja' ? '閉じる' : 'Close',
+                    style: TextStyle(fontSize: 14),
                   ),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueAccent,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   ),
                   onPressed: () async {
                     if (phoneCondition == null) {
@@ -852,7 +904,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                           curve: Curves.easeInOut,
                         );
                       }
-                      _shakeController.forward(from: 0);
+                      _shakeController.forward(from: 0); // Trigger the shake animation
                       return;
                     }
 
@@ -867,7 +919,10 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                     Navigator.of(context).pop({'phoneConditionOut': finalCondition});
                   },
                   child: Text(
-                    _currentLanguage == 'ja' ? '確認' : 'Confirm',
+                    isExempted
+                        ? (_currentLanguage == 'ja' ? '確認' : 'Confirm')
+                        : (_currentLanguage == 'ja' ? 'スキャン' : 'Scan'),
+                    style: TextStyle(fontSize: 14),
                   ),
                 ),
               ],
@@ -878,28 +933,12 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     );
   }
 
-  Widget _buildTimeRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: TextStyle(fontWeight: FontWeight.w500)),
-        Text(
-          value,
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.blueGrey,
-          ),
-        ),
-      ],
-    );
-  }
-
   Widget _buildInfoRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: TextStyle(fontWeight: FontWeight.w500)),
-        Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+        Text(label, style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+        Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo, fontSize: 13)),
       ],
     );
   }
@@ -913,10 +952,10 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   }) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
         crossAxisAlignment:
@@ -926,11 +965,11 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
             title,
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              fontSize: 16,
+              fontSize: 15,
               color: titleColor,
             ),
           ),
-          SizedBox(height: 12),
+          SizedBox(height: 8),
           content,
         ],
       ),
@@ -996,10 +1035,10 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         if (profileData["success"] == true) {
           String profilePictureFileName = profileData["picture"];
 
-          String primaryUrl = "${ApiServiceJP.apiUrls[0]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
+          String primaryUrl = "${ApiService.apiUrls[0]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
           bool isPrimaryUrlValid = await _isImageAvailable(primaryUrl);
 
-          String fallbackUrl = "${ApiServiceJP.apiUrls[1]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
+          String fallbackUrl = "${ApiService.apiUrls[1]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
           bool isFallbackUrlValid = await _isImageAvailable(fallbackUrl);
 
           // Fetch timeIn records
@@ -1119,18 +1158,9 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     }
   }
   Future<void> _logout() async {
-    final exemptedIds = ['1243', '0939', '1163', '1239', '1288'];
     final isExempted = exemptedIds.contains(_currentIdNumber);
 
-    // Only show QR scanner for non exempted users
-    if (!isExempted) {
-      final bool? qrVerified = await _showQrScanner();
-      if (qrVerified != true) {
-        return;
-      }
-    }
-
-    // Show phone condition dialog for logout
+    // Show phone condition dialog for logout first
     final phoneConditionResult = await _showPhoneConditionDialogOut();
     if (phoneConditionResult == null) {
       // User cancelled the dialog
@@ -1139,6 +1169,13 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
 
     String phoneConditionOut = phoneConditionResult['phoneConditionOut'] ?? 'Good: Yes';
 
+    // Only show QR scanner for non exempted users
+    if (!isExempted) {
+      final bool? qrVerified = await _showQrScanner();
+      if (qrVerified != true) {
+        return;
+      }
+    }
     try {
       // First check if there are any active WTR sessions
       final activeSessionsCheck = await _apiService.checkActiveWTR(_currentIdNumber!);
@@ -1744,13 +1781,13 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
 
                                     // Get the current language from shared preferences
                                     final prefs = await SharedPreferences.getInstance();
-                                    final language = prefs.getString('languageJP') ?? 'en';
+                                    final language = prefs.getString('languageJP') ?? 'ja';
 
                                     // Determine language flag (1 for English, 2 for Japanese)
                                     final languageFlag = language == 'ja' ? 2 : 1;
 
                                     // Fetch the manual link (using linkID 10 as specified)
-                                    final pdfUrl = await _apiServiceph.fetchManualLink(10, languageFlag);
+                                    final pdfUrl = await _apiServicePH.fetchManualLink(10, languageFlag);
 
                                     // Open the PDF viewer
                                     if (!mounted) return;
