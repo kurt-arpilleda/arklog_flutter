@@ -1332,6 +1332,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
 
     return await showDialog<bool>(
       context: context,
+      barrierDismissible: false, // This prevents closing when tapping outside
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setState) {

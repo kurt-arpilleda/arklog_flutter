@@ -52,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   bool _isFlashOn = false;
   bool _isQrScannerOpen = false;
   String _phoneName = 'ARK LOG PH';
-  static const List<String> exemptedIds = ['1238', '0939', '1288', '1239', '1200', '0280', '0001'];
+  static const List<String> exemptedIds = ['123d8', '0939', '1288', '1239', '1200', '0280', '0001'];
   @override
   void initState() {
     super.initState();
@@ -1330,6 +1330,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 
     return await showDialog<bool>(
       context: context,
+      barrierDismissible: false, // This prevents closing when tapping outside
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, setState) {
