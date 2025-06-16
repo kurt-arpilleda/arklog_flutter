@@ -784,8 +784,8 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                               Expanded(
                                 child: Text(
                                   _currentLanguage == 'ja'
-                                      ? '守衛に預ける前に、電話に問題や損傷がないか確認しますか？'
-                                      : 'Do you confirm the phone has no issues or damage before charging it to the guardhouse?',
+                                      ? 'この携帯電話に問題や損傷がないことを返却前に確認しましたか？'
+                                      : 'Do you confirm that the phone has no issues or damage before surrendering it?',
                                   style: TextStyle(
                                     color: Colors.amber.shade900,
                                     fontWeight: FontWeight.w600,
@@ -1362,8 +1362,8 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                             children: [
                               Text(
                                 _currentLanguage == 'ja'
-                                    ? 'ログアウト時は守衛所でQRコードをスキャンしてください'
-                                    : 'Scan the QR code at the Guard House to log out',
+                                    ? 'ログアウトするためにQRコードをスキャンしてください'
+                                    : 'Scan the QR code to log out',
                                 style: TextStyle(
                                   fontSize: _currentLanguage == 'ja' ? 16 : 18,
                                   fontWeight: FontWeight.bold,
@@ -1401,8 +1401,8 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                           const SizedBox(height: 12), // spacing below scanner
                           Text(
                             _currentLanguage == 'ja'
-                                ? '⚠️ ログアウトにはAPI-Guard-HigherBand Wi-Fiへの接続が必要です。ログアウト後は守衛に電話を充電してください。'
-                                : '⚠️ Connect to API-Guard-HigherBand Wi-Fi to log out. Please charge the phone to the guardhouse after logging out.',
+                                ? '⚠️ ログアウトするにはArktechのWi-Fiネットワークに接続してください。'
+                                : '⚠️ Connect to the Arktech Wi-Fi network to log out.',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.deepOrange,
