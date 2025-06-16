@@ -1441,7 +1441,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     });
   }
 
-
   String xorDecrypt(String base64Data, String key) {
     final decodedBytes = base64.decode(base64Data);
     final keyBytes = utf8.encode(key);
