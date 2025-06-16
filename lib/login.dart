@@ -52,6 +52,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   bool _isFlashOn = false;
   bool _isQrScannerOpen = false;
   String _phoneName = 'ARK LOG PH';
+  static const List<String> exemptedIds = ['1243', '0939', '1163', '1239', '1288', '0001'];
   @override
   void initState() {
     super.initState();
@@ -611,6 +612,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     final GlobalKey _choiceChipsKey = GlobalKey();
 
     final currentDate = DateFormat('MMMM d, y').format(DateTime.now());
+    final isExempted = exemptedIds.contains(_currentIdNumber);
 
     Map<String, dynamic> shiftTimeInfo = {};
     Map<String, dynamic> outputToday = {'totalCount': 0, 'totalQty': 0};
@@ -866,7 +868,9 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                     Navigator.of(context).pop({'phoneConditionOut': finalCondition});
                   },
                   child: Text(
-                    _currentLanguage == 'ja' ? 'スキャン' : 'Scan',
+                    isExempted
+                        ? (_currentLanguage == 'ja' ? '確認' : 'Confirm')
+                        : (_currentLanguage == 'ja' ? 'スキャン' : 'Scan'),
                   ),
                 ),
               ],
@@ -1118,7 +1122,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     }
   }
   Future<void> _logout() async {
-    final exemptedIds = ['1243', '0939', '1163', '1239', '1288'];
     final isExempted = exemptedIds.contains(_currentIdNumber);
 
     // Show phone condition dialog for logout first
