@@ -1344,15 +1344,14 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                   final screenWidth = MediaQuery.of(context).size.width;
                   final screenHeight = MediaQuery.of(context).size.height;
                   final isLandscape = screenWidth > screenHeight;
-
-                  // Larger size for scanner but keep some margin
                   final maxScannerSize = isLandscape
-                      ? screenHeight - 160 // leave room for text/buttons
-                      : screenWidth * 0.85;
+                      ? screenHeight - 120
+                      : screenWidth * 0.92;
+                  final cutOutSize = maxScannerSize * 0.9;
 
                   return SingleChildScrollView(
                     child: Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(12),
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -1371,7 +1370,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(12),
                             child: ConstrainedBox(
@@ -1388,21 +1387,21 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                                   overlay: QrScannerOverlayShape(
                                     borderColor: Colors.red,
                                     borderRadius: 10,
-                                    borderLength: 30,
-                                    borderWidth: 10,
-                                    cutOutSize: maxScannerSize * 0.8,
+                                    borderLength: 40,
+                                    borderWidth: 8,
+                                    cutOutSize: cutOutSize,
                                   ),
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 12), // spacing below scanner
+                          const SizedBox(height: 10),
                           Text(
                             _currentLanguage == 'ja'
                                 ? '⚠️ ログアウトにはAPI-Guard-HigherBand Wi-Fiへの接続が必要です。ログアウト後は守衛に電話を充電してください。'
                                 : '⚠️ Connect to API-Guard-HigherBand Wi-Fi to log out. Please charge the phone to the guardhouse after logging out.',
                             style: TextStyle(
-                              fontSize: 14,
+                              fontSize: 13,
                               color: Colors.deepOrange,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1420,11 +1419,11 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                                 textAlign: TextAlign.center,
                               ),
                             ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Expanded(child: SizedBox()), // Spacer
+                              const Expanded(child: SizedBox()),
                               IconButton(
                                 icon: Icon(
                                   Icons.highlight,
