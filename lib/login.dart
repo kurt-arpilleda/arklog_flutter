@@ -832,7 +832,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(null),
                   child: Text(
-                    _currentLanguage == 'ja' ? 'キャンセル' : 'Cancel',
+                    _currentLanguage == 'ja' ? '閉じる' : 'Close',
                   ),
                 ),
                 ElevatedButton(
@@ -851,7 +851,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                           curve: Curves.easeInOut,
                         );
                       }
-                      _shakeController.forward(from: 0);
+                      _shakeController.forward(from: 0); // Trigger the shake animation
                       return;
                     }
 
@@ -866,7 +866,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                     Navigator.of(context).pop({'phoneConditionOut': finalCondition});
                   },
                   child: Text(
-                    _currentLanguage == 'ja' ? '確認' : 'Confirm',
+                    _currentLanguage == 'ja' ? 'スキャン' : 'Scan',
                   ),
                 ),
               ],
@@ -1121,15 +1121,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     final exemptedIds = ['1243', '0939', '1163', '1239', '1288'];
     final isExempted = exemptedIds.contains(_currentIdNumber);
 
-    // Only show QR scanner for non exempted users
-    if (!isExempted) {
-      final bool? qrVerified = await _showQrScanner();
-      if (qrVerified != true) {
-        return;
-      }
-    }
-
-    // Show phone condition dialog for logout
+    // Show phone condition dialog for logout first
     final phoneConditionResult = await _showPhoneConditionDialogOut();
     if (phoneConditionResult == null) {
       // User cancelled the dialog
@@ -1138,6 +1130,13 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 
     String phoneConditionOut = phoneConditionResult['phoneConditionOut'] ?? 'Good: Yes';
 
+    // Only show QR scanner for non exempted users
+    if (!isExempted) {
+      final bool? qrVerified = await _showQrScanner();
+      if (qrVerified != true) {
+        return;
+      }
+    }
     try {
       // First check if there are any active WTR sessions
       final activeSessionsCheck = await _apiService.checkActiveWTR(_currentIdNumber!);
