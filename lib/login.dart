@@ -1158,10 +1158,8 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   Future<void> _logout() async {
     final isExempted = exemptedIds.contains(_currentIdNumber);
 
-    // Show phone condition dialog for logout first
     final phoneConditionResult = await _showPhoneConditionDialogOut();
     if (phoneConditionResult == null) {
-      // User cancelled the dialog
       return;
     }
 
@@ -1174,19 +1172,27 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         return;
       }
     }
-    try {
-      // First check if there are any active WTR sessions
-      final activeSessionsCheck = await _apiService.checkActiveWTR(_currentIdNumber!);
-      // Only proceed with confirm logout if there are active sessions
-      if (activeSessionsCheck["hasActiveSessions"] == true) {
-        // Call the confirmLogoutWTR API to check if the user is trying to log out before shift end
-        final confirmResult = await _apiService.confirmLogoutWTR(_currentIdNumber!);
 
-        // Display different dialog based on whether it's an undertime logout or not
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+      try {
+        if (_currentIdNumber != null) {
+          await _apiService.insertDailyPerformance(_currentIdNumber!);
+          print("Daily performance data inserted successfully");
+        }
+      } catch (e) {
+        print("Error inserting daily performance: $e");
+      }
+
+      final activeSessionsCheck = await _apiService.checkActiveWTR(_currentIdNumber!);
+
+      if (activeSessionsCheck["hasActiveSessions"] == true) {
+        final confirmResult = await _apiService.confirmLogoutWTR(_currentIdNumber!);
         bool confirm = false;
 
         if (confirmResult["isUndertime"] == true) {
-          // Show undertime-specific dialog
           confirm = await showDialog(
             context: context,
             builder: (BuildContext context) {
@@ -1248,19 +1254,17 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
               },
             );
           } else {
-            // Management can logout without confirmation
             confirm = true;
           }
         }
 
         if (confirm != true) {
+          setState(() {
+            _isLoading = false;
+          });
           return; // User cancelled the logout
         }
       }
-
-      setState(() {
-        _isLoading = true;
-      });
 
       try {
         // Only logout from WTR system if there are active sessions
@@ -1299,6 +1303,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           _currentIdNumber = null;
           _idController.clear();
         });
+
         ScaffoldMessenger.of(context).removeCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1312,14 +1317,39 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           ),
         );
       } catch (e) {
-        // Error handling
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                _currentLanguage == 'ja'
+                    ? 'ログアウトエラー'
+                    : 'Logout error'
+            ),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.fixed,
+          ),
+        );
       } finally {
         setState(() {
           _isLoading = false;
         });
       }
     } catch (e) {
-      // Error handling
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              _currentLanguage == 'ja'
+                  ? 'エラーが発生しました'
+                  : 'An error occurred'
+          ),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.fixed,
+        ),
+      );
     }
   }
 
