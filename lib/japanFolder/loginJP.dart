@@ -759,7 +759,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                                       ),
                                       SizedBox(height: 4),
                                       _buildInfoRow(
-                                        _currentLanguage == 'ja' ? '遅刻回数' : 'Late Count',
+                                        _currentLanguage == 'ja' ? '遅刻' : 'Late',
                                         workTimeInfo['lateCount'].toString(),
                                       ),
                                     ],
