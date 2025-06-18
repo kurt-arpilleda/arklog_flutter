@@ -870,7 +870,6 @@ class ApiServiceJP {
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
 }
-
 // Helper class to track which API URL was used
 class _ApiResult<T> {
   final T value;
