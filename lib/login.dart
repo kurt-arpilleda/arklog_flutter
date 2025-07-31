@@ -1157,33 +1157,38 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   }
   Future<void> _logout() async {
     final isExempted = exemptedIds.contains(_currentIdNumber);
+    try {
+      setState(() => _isLoading = true);
+      final unfinishedCheck = await _apiService.checkUnfinishedWork(_currentIdNumber!);
+      if (unfinishedCheck['hasUnfinishedWork'] == true) {
+        await _showUnfinishedWorkDialog(unfinishedCheck['items']);
+        setState(() => _isLoading = false);
+        return;
+      }
+    } catch (e) {
+      debugPrint("Error checking unfinished work: $e");
+    } finally {
+      setState(() => _isLoading = false);
+    }
 
     final phoneConditionResult = await _showPhoneConditionDialogOut();
-    if (phoneConditionResult == null) {
-      return;
-    }
+    if (phoneConditionResult == null) return;
 
     String phoneConditionOut = phoneConditionResult['phoneConditionOut'] ?? 'Good: Yes';
 
-    // Only show QR scanner for non exempted users
     if (!isExempted) {
       final bool? qrVerified = await _showQrScanner();
-      if (qrVerified != true) {
-        return;
-      }
+      if (qrVerified != true) return;
     }
 
     try {
-      setState(() {
-        _isLoading = true;
-      });
+      setState(() => _isLoading = true);
       try {
         if (_currentIdNumber != null) {
           await _apiService.insertDailyPerformance(_currentIdNumber!);
-          print("Daily performance data inserted successfully");
         }
       } catch (e) {
-        print("Error inserting daily performance: $e");
+        debugPrint("Error inserting daily performance: $e");
       }
 
       final activeSessionsCheck = await _apiService.checkActiveWTR(_currentIdNumber!);
@@ -1197,9 +1202,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
             context: context,
             builder: (BuildContext context) {
               return AlertDialog(
-                title: Text(
-                  _currentLanguage == 'ja' ? '早退の確認' : 'Early Logout',
-                ),
+                title: Text(_currentLanguage == 'ja' ? '早退の確認' : 'Early Logout'),
                 content: Text(
                   _currentLanguage == 'ja'
                       ? 'シフト終了時間は${confirmResult["shiftOut"]}です。本当にログアウトしますか？'
@@ -1208,149 +1211,192 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(false),
-                    child: Text(
-                      _currentLanguage == 'ja' ? 'キャンセル' : 'Cancel',
-                    ),
+                    child: Text(_currentLanguage == 'ja' ? 'キャンセル' : 'Cancel'),
                   ),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(true),
-                    child: Text(
-                      _currentLanguage == 'ja' ? 'ログアウトする' : 'Logout Anyway',
-                    ),
+                    child: Text(_currentLanguage == 'ja' ? 'ログアウトする' : 'Logout Anyway'),
                   ),
                 ],
               );
             },
           );
         } else {
-          // For management, skip confirmation dialog
-          if (!isExempted) {
-            // Standard logout confirmation dialog for non-management
-            confirm = await showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                return AlertDialog(
-                  title: Text(
-                    _currentLanguage == 'ja' ? 'ログアウトの確認' : 'Confirm Logout',
+          confirm = await showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: Text(_currentLanguage == 'ja' ? 'ログアウトの確認' : 'Confirm Logout'),
+                content: Text(_currentLanguage == 'ja' ? 'ログアウトしますか？' : 'Are you sure you want to logout?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: Text(_currentLanguage == 'ja' ? 'キャンセル' : 'Cancel'),
                   ),
-                  content: Text(
-                    _currentLanguage == 'ja' ? 'ログアウトしますか？' : 'Are you sure you want to logout?',
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: Text(_currentLanguage == 'ja' ? 'ログアウト' : 'Logout'),
                   ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: Text(
-                        _currentLanguage == 'ja' ? 'キャンセル' : 'Cancel',
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: Text(
-                        _currentLanguage == 'ja' ? 'ログアウト' : 'Logout',
-                      ),
-                    ),
-                  ],
-                );
-              },
-            );
-          } else {
-            confirm = true;
-          }
+                ],
+              );
+            },
+          );
         }
 
         if (confirm != true) {
-          setState(() {
-            _isLoading = false;
-          });
-          return; // User cancelled the logout
+          setState(() => _isLoading = false);
+          return;
         }
       }
 
-      try {
-        // Only logout from WTR system if there are active sessions
-        if (activeSessionsCheck["hasActiveSessions"] == true) {
-          final logoutResult = await _apiService.logoutWTR(
-            _currentIdNumber!,
-            phoneConditionOut: phoneConditionOut,
+      if (activeSessionsCheck["hasActiveSessions"] == true) {
+        final logoutResult = await _apiService.logoutWTR(
+          _currentIdNumber!,
+          phoneConditionOut: phoneConditionOut,
+        );
+
+        if (logoutResult["isUndertime"] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(_currentLanguage == 'ja'
+                  ? 'シフト終了前にログアウトしました'
+                  : 'You have logged out before your shift ended'),
+              duration: Duration(seconds: 2),
+            ),
           );
-
-          // Check if this was an undertime logout
-          if (logoutResult["isUndertime"] == true) {
-            // Show undertime message
-            ScaffoldMessenger.of(context).removeCurrentSnackBar();
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                    _currentLanguage == 'ja'
-                        ? 'シフト終了前にログアウトしました'
-                        : 'You have logged out before your shift ended'
-                ),
-                duration: const Duration(seconds: 2),
-                behavior: SnackBarBehavior.fixed,
-              ),
-            );
-          }
         }
-
-        // Always logout from the device tracking system
-        await _apiService.logout(_deviceId!);
-
-        setState(() {
-          _isLoggedIn = false;
-          _firstName = null;
-          _surName = null;
-          _profilePictureUrl = null;
-          _currentIdNumber = null;
-          _idController.clear();
-        });
-
-        ScaffoldMessenger.of(context).removeCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                _currentLanguage == 'ja'
-                    ? 'ログアウトに成功しました'
-                    : 'Logged out successfully'
-            ),
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.fixed,
-          ),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(context).removeCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-                _currentLanguage == 'ja'
-                    ? 'ログアウトエラー'
-                    : 'Logout error'
-            ),
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.fixed,
-          ),
-        );
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
       }
-    } catch (e) {
+
+      await _apiService.logout(_deviceId!);
+
       setState(() {
-        _isLoading = false;
+        _isLoggedIn = false;
+        _firstName = null;
+        _surName = null;
+        _profilePictureUrl = null;
+        _currentIdNumber = null;
+        _idController.clear();
       });
-      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-              _currentLanguage == 'ja'
-                  ? 'エラーが発生しました'
-                  : 'An error occurred'
-          ),
-          duration: const Duration(seconds: 2),
-          behavior: SnackBarBehavior.fixed,
+          content: Text(_currentLanguage == 'ja' ? 'ログアウトに成功しました' : 'Logged out successfully'),
+          duration: Duration(seconds: 2),
         ),
       );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_currentLanguage == 'ja' ? 'エラーが発生しました' : 'An error occurred'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _showUnfinishedWorkDialog(List<dynamic> items) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final dialogWidth = screenWidth * 0.95 > 480 ? 480.0 : screenWidth * 0.95;
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.red),
+              SizedBox(width: 10),
+              Text(_currentLanguage == 'ja' ? '未完了の作業' : 'Unfinished Work'),
+            ],
+          ),
+          content: Container(
+            width: dialogWidth,
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _currentLanguage == 'ja'
+                        ? '以下の作業が未完了です。帰宅前に完了させるかキャンセルしてください。'
+                        : 'You have unfinished work items. Please finish or cancel them before going home.',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                  SizedBox(height: 16),
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Column(
+                      children: items.map<Widget>((item) {
+                        return Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    '${_currentLanguage == 'ja' ? 'ロット番号' : 'Lot Number'}: ',
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(item['lotNumber']),
+                                ],
+                              ),
+                              SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Text(
+                                    '${_currentLanguage == 'ja' ? '数量' : 'Quantity'}: ',
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(item['quantity'].toString()),
+                                ],
+                              ),
+                              SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  Text(
+                                    '${_currentLanguage == 'ja' ? 'プロセス' : 'Process'}: ',
+                                    style: TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                  Text(item['processName']),
+                                ],
+                              ),
+                              Divider(),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    _currentLanguage == 'ja'
+                        ? '帰宅前に未完了のロットを終了するか、開始時間をキャンセルしてください。'
+                        : 'PLEASE FINISH THE ITEMS OR CANCEL THE ITEMS YOU STARTED BEFORE GOING HOME.',
+                    style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(_currentLanguage == 'ja' ? '閉じる' : 'Close'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<bool?> _showQrScanner() async {

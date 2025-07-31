@@ -869,6 +869,31 @@ class ApiServiceJP {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+  Future<Map<String, dynamic>> checkUnfinishedWork(String idNumber) async {
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkWorkStart.php?idNumber=$idNumber");
+          final response = await httpClient.get(uri);
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            return _ApiResult(data, apiUrl);
+          }
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
+        }
+      }
+    }
+    throw Exception("Failed to check unfinished work after $maxRetries attempts");
+  }
 }
 // Helper class to track which API URL was used
 class _ApiResult<T> {
