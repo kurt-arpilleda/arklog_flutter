@@ -16,6 +16,7 @@
         tools:ignore="QueryAllPackagesPermission" />
     <queries>
         <package android:name="com.example.ark_notif" />
+        <package android:name="com.example.workstart_finish" />
     </queries>
     <application
         android:label="ARK LOG"

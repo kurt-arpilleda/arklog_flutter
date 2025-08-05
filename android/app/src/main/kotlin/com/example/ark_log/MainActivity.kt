@@ -3,6 +3,7 @@ package com.example.ark_log
 import android.content.Context
 import android.content.Intent
 import android.content.ComponentName
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -15,24 +16,26 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "input_method_channel"
     private val NOTIF_PACKAGE = "com.example.ark_notif"
     private val NOTIF_SERVICE = "com.example.ark_notif.RingMonitoringService"
+    private val WORKSTART_PACKAGE = "com.example.workstart_finish"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // Start your notification service
         startNotificationService()
-
-        // Check and prompt for unknown app sources permission
         checkInstallUnknownAppsPermission()
 
-        // Setup your method channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
-            if (call.method == "showInputMethodPicker") {
-                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                imm.showInputMethodPicker()
-                result.success(null)
-            } else {
-                result.notImplemented()
+            when (call.method) {
+                "showInputMethodPicker" -> {
+                    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                    imm.showInputMethodPicker()
+                    result.success(null)
+                }
+                "openWorkStartApp" -> {
+                    openWorkStartApp()
+                    result.success(null)
+                }
+                else -> result.notImplemented()
             }
         }
     }
@@ -57,13 +60,23 @@ class MainActivity : FlutterActivity() {
     private fun checkInstallUnknownAppsPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             if (!packageManager.canRequestPackageInstalls()) {
-                // Open settings so user can enable permission
                 val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
                     data = Uri.parse("package:$packageName")
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 }
                 startActivity(intent)
             }
+        }
+    }
+
+    private fun openWorkStartApp() {
+        try {
+            val launchIntent = packageManager.getLaunchIntentForPackage(WORKSTART_PACKAGE)
+            if (launchIntent != null) {
+                startActivity(launchIntent)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }

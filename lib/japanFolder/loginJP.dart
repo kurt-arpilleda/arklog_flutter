@@ -1308,11 +1308,24 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
 
         return AlertDialog(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          titlePadding: EdgeInsets.only(top: 16, left: 24, right: 8, bottom: 8),
           title: Row(
             children: [
               Icon(Icons.warning, color: Colors.red),
               SizedBox(width: 10),
-              Text(_currentLanguage == 'ja' ? '未完了の作業' : 'Unfinished Work'),
+              Expanded(
+                child: Text(
+                  _currentLanguage == 'ja' ? '未完了の作業' : 'Unfinished Work',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              GestureDetector(
+                onTap: () => Navigator.of(context).pop(),
+                child: Icon(Icons.close, color: Colors.grey),
+              ),
             ],
           ),
           content: Container(
@@ -1392,14 +1405,22 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(_currentLanguage == 'ja' ? '閉じる' : 'Close'),
+              onPressed: () async {
+                const platform = MethodChannel('input_method_channel');
+                try {
+                  await platform.invokeMethod('openWorkStartApp');
+                } catch (e) {
+                  print('Failed to open WorkStart app: $e');
+                }
+              },
+              child: Text(_currentLanguage == 'ja' ? 'WorkStart を開く' : 'Open WorkStart'),
             ),
           ],
         );
       },
     );
   }
+
 
   Future<bool?> _showQrScanner() async {
     _qrErrorMessage = null;
