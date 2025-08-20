@@ -28,7 +28,6 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   final TextEditingController _idController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   final ApiServiceJP _apiService = ApiServiceJP();
-  final ApiService _apiServicePH = ApiService();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   QRViewController? qrController;
@@ -1657,20 +1656,82 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                   elevation: 0,
                   centerTitle: true,
                   toolbarHeight: kToolbarHeight - 20,
-                  leading: IconButton(
-                    padding: EdgeInsets.zero, // Removes internal padding
-                    iconSize: 30, // Slightly smaller if needed
-                    icon: Icon(
-                      Icons.settings,
-                      color: Colors.white,
+                  leadingWidth: 120,
+                  leading: SizedBox(
+                    width: 120,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: BoxConstraints(),
+                          iconSize: 30,
+                          icon: Icon(
+                            Icons.settings,
+                            color: Colors.white,
+                          ),
+                          onPressed: () {
+                            _scaffoldKey.currentState?.openDrawer();
+                          },
+                        ),
+                        SizedBox(width: 16),
+                        IconButton(
+                          padding: EdgeInsets.zero,
+                          constraints: BoxConstraints(),
+                          iconSize: 29.5,
+                          icon: Transform.translate(
+                            offset: Offset(0, -2),
+                            child: Icon(
+                              Icons.menu_book,
+                              color: Colors.amberAccent,
+                            ),
+                          ),
+                          onPressed: () async {
+                            try {
+                              setState(() {
+                                _isLoading = true;
+                              });
+                              final prefs = await SharedPreferences.getInstance();
+                              final language = prefs.getString('languageJP') ?? 'en';
+                              final languageFlag = language == 'ja' ? 2 : 1;
+
+                              final pdfUrl = await _apiService.fetchManualLink(10, languageFlag);
+                              if (!mounted) return;
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => PDFViewerScreen(
+                                    pdfUrl: pdfUrl,
+                                    fileName: 'manual_${language == 'ja' ? 'jp' : 'en'}.pdf',
+                                    languageFlag: languageFlag,
+                                  ),
+                                ),
+                              );
+                            } catch (e) {
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      _currentLanguage == 'ja'
+                                          ? 'マニュアルのオープンに失敗しました: ${e.toString()}'
+                                          : 'Failed to open manual: ${e.toString()}'
+                                  ),
+                                ),
+                              );
+                            } finally {
+                              if (!mounted) return;
+                              setState(() {
+                                _isLoading = false;
+                              });
+                            }
+                          },
+                        ),
+                      ],
                     ),
-                    onPressed: () {
-                      _scaffoldKey.currentState?.openDrawer();
-                    },
                   ),
                   actions: [
                     Padding(
-                      padding: const EdgeInsets.only(right: 6.0), // Slightly tighter padding
+                      padding: const EdgeInsets.only(right: 6.0),
                       child: IconButton(
                         padding: EdgeInsets.zero,
                         iconSize: 25,
@@ -1845,75 +1906,6 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                                 iconSize: 28,
                                 onPressed: () {
                                   _showInputMethodPicker();
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                        SizedBox(height: 20),
-                        Padding(
-                          padding: EdgeInsets.only(
-                            left: _currentLanguage == 'ja' ? 46.0 : 30.0,
-                          ),
-                          child: Row(
-                            children: [
-                              Text(
-                                _currentLanguage == 'ja' ? '手引き' : 'Manual',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              SizedBox(width: 15),
-                              IconButton(
-                                icon: Icon(Icons.menu_book, size: 28),
-                                iconSize: 28,
-                                onPressed: () async {
-                                  try {
-                                    // Show loading indicator
-                                    setState(() {
-                                      _isLoading = true;
-                                    });
-
-                                    // Get the current language from shared preferences
-                                    final prefs = await SharedPreferences.getInstance();
-                                    final language = prefs.getString('languageJP') ?? 'ja';
-
-                                    // Determine language flag (1 for English, 2 for Japanese)
-                                    final languageFlag = language == 'ja' ? 2 : 1;
-
-                                    // Fetch the manual link (using linkID 10 as specified)
-                                    final pdfUrl = await _apiServicePH.fetchManualLink(10, languageFlag);
-
-                                    // Open the PDF viewer
-                                    if (!mounted) return;
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => PDFViewerScreen(
-                                          pdfUrl: pdfUrl,
-                                          fileName: 'manual_${language == 'ja' ? 'jp' : 'en'}.pdf',
-                                          languageFlag: languageFlag,
-                                        ),
-                                      ),
-                                    );
-                                  } catch (e) {
-                                    if (!mounted) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                            _currentLanguage == 'ja'
-                                                ? 'マニュアルのオープンに失敗しました: ${e.toString()}'
-                                                : 'Failed to open manual: ${e.toString()}'
-                                        ),
-                                      ),
-                                    );
-                                  } finally {
-                                    if (!mounted) return;
-                                    setState(() {
-                                      _isLoading = false;
-                                    });
-                                  }
                                 },
                               ),
                             ],
