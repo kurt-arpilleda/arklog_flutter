@@ -820,6 +820,101 @@ class ApiService {
     }
     throw Exception("Failed to check unfinished work after $maxRetries attempts");
   }
+  Future<Map<String, dynamic>> fetchTodos(String idNumber) async {
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchTodo.php?idNumber=$idNumber");
+          final response = await httpClient.get(uri);
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            if (data["success"] == true) {
+              return _ApiResult(data, apiUrl);
+            } else {
+              throw Exception(data["error"] ?? "Failed to fetch todos");
+            }
+          }
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
+        }
+      }
+    }
+    throw Exception("Both API URLs are unreachable after $maxRetries attempts");
+  }
+
+  Future<Map<String, dynamic>> updateTodo(int todoId, int done) async {
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_updateTodo.php");
+          final response = await httpClient.post(
+            uri,
+            body: {
+              'todoId': todoId.toString(),
+              'done': done.toString(),
+            },
+          );
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            if (data["success"] == true) {
+              return _ApiResult(data, apiUrl);
+            } else {
+              throw Exception(data["message"] ?? "Failed to update todo");
+            }
+          }
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
+        }
+      }
+    }
+    throw Exception("Both API URLs are unreachable after $maxRetries attempts");
+  }
+
+  Future<Map<String, dynamic>> fetchTodoCount(String idNumber) async {
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchTodoCount.php?idNumber=$idNumber");
+          final response = await httpClient.get(uri);
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            if (data["success"] == true) {
+              return _ApiResult(data, apiUrl);
+            } else {
+              throw Exception(data["error"] ?? "Failed to fetch todo count");
+            }
+          }
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
+        }
+      }
+    }
+    throw Exception("Both API URLs are unreachable after $maxRetries attempts");
+  }
 }
 // Helper class to track which API URL was used
 class _ApiResult<T> {

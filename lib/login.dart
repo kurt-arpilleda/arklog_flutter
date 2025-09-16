@@ -52,6 +52,8 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   bool _isFlashOn = false;
   bool _isQrScannerOpen = false;
   String _phoneName = 'ARK LOG PH';
+  int _todoCount = 0;
+  Timer? _todoTimer;
   static const List<String> exemptedIds = ['1238', '0939', '1288', '1239', '1200', '0280', '0001'];
   @override
   void initState() {
@@ -60,6 +62,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     tz.initializeTimeZones();
     _initializeApp();
     _updateDateTime();
+    _todoTimer = Timer.periodic(Duration(seconds: 30), (Timer t) => _updateTodoCount());
     _timer = Timer.periodic(Duration(seconds: 1), (Timer t) => _updateDateTime());
 
   }
@@ -119,11 +122,16 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 
             if (loginSuccess) {
               await _fetchProfile(idNumber);
+
+              // Also fetch todo count for exclusive user
+              final countData = await _apiService.fetchTodoCount(idNumber);
+
               setState(() {
                 _isLoggedIn = true;
                 _currentIdNumber = idNumber;
                 _idController.text = idNumber;
                 _isExclusiveUser = true;
+                _todoCount = countData['count'] ?? 0; // ADD THIS LINE
               });
               return; // Skip the rest if exclusive login succeeded
             }
@@ -295,6 +303,12 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           _isLoggedIn = true;
           _currentIdNumber = lastIdNumber;
         });
+
+        // Also fetch todo count specifically for this case
+        final countData = await _apiService.fetchTodoCount(lastIdNumber);
+        setState(() {
+          _todoCount = countData['count'] ?? 0;
+        });
       }
     } catch (e) {
       print('Error loading last ID number: $e');
@@ -313,7 +327,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         String fallbackUrl = "${ApiService.apiUrls[1]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
         bool isFallbackUrlValid = await _isImageAvailable(fallbackUrl);
 
-        // Fetch timeIn records
         final timeInData = await _apiService.fetchTimeIns(idNumber);
         String? latestTimeIn = timeInData["latestTimeIn"] != null
             ? _formatTimeIn(timeInData["latestTimeIn"])
@@ -323,23 +336,25 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         String language = languageFlag == 2 ? "ja" : "en";
         await _updateLanguage(language);
 
+        final countData = await _apiService.fetchTodoCount(idNumber);
+
         setState(() {
           _firstName = profileData["firstName"];
           _surName = profileData["surName"];
           _profilePictureUrl = isPrimaryUrlValid ? primaryUrl : isFallbackUrlValid ? fallbackUrl : null;
           _currentIdNumber = idNumber;
           _latestTimeIn = latestTimeIn;
+          _todoCount = countData['count'] ?? 0;
         });
+
         if (profileData["birthdate"] != null) {
           final birthdate = DateTime.parse(profileData["birthdate"]);
           final today = DateTime.now();
           if (birthdate.month == today.month && birthdate.day == today.day) {
-            // Close any existing birthday celebration
             if (Navigator.of(context).canPop()) {
               BirthdayCelebration.close(context);
             }
 
-            // Show new birthday celebration
             WidgetsBinding.instance.addPostFrameCallback((_) {
               showDialog(
                 context: context,
@@ -363,13 +378,14 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     } catch (e) {
       print("Error fetching profile: $e");
     }
+    _updateTodoCount();
   }
   String _formatTimeIn(String timeIn) {
     try {
       DateTime dateTime = DateTime.parse(timeIn);
       return DateFormat('hh:mm a').format(dateTime);
     } catch (e) {
-      return timeIn; // return as-is if parsing fails
+      return timeIn;
     }
   }
 
@@ -940,7 +956,301 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       ],
     );
   }
+  Future<void> _updateTodoCount() async {
+    if (_currentIdNumber != null && _isLoggedIn) {
+      try {
+        final countData = await _apiService.fetchTodoCount(_currentIdNumber!);
+        if (mounted) {
+          setState(() {
+            _todoCount = countData['count'] ?? 0;
+          });
+        }
+      } catch (e) {
+        debugPrint("Error fetching todo count: $e");
+      }
+    }
+  }
+  Future<void> _showTodoDialog() async {
+    if (_currentIdNumber == null) return;
 
+    try {
+      final todoData = await _apiService.fetchTodos(_currentIdNumber!);
+      final todos = List<Map<String, dynamic>>.from(todoData['todos'] ?? []);
+
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return StatefulBuilder(
+            builder: (context, setState) {
+              return Dialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Container(
+                  width: MediaQuery.of(context).size.width * 0.9,
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.8,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [Color(0xFF3452B4), Color(0xFF2053B3)],
+                          ),
+                          borderRadius: BorderRadius.only(
+                            topLeft: Radius.circular(20),
+                            topRight: Radius.circular(20),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                Icons.task_alt,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                            ),
+                            SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _currentLanguage == 'ja' ? 'やることリスト' : 'To-Do List',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  Text(
+                                    '${todos.length} ${_currentLanguage == 'ja' ? '件のタスク' : 'tasks'}',
+                                    style: TextStyle(
+                                      color: Colors.white.withOpacity(0.9),
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            IconButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              icon: Icon(Icons.close, color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Flexible(
+                        child: todos.isEmpty
+                            ? Container(
+                          padding: EdgeInsets.all(40),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.task_alt,
+                                size: 64,
+                                color: Colors.grey[400],
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                _currentLanguage == 'ja'
+                                    ? 'タスクはありません'
+                                    : 'No tasks available',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                _currentLanguage == 'ja'
+                                    ? '素晴らしい！すべて完了しました'
+                                    : 'Great! All tasks completed',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                            : ListView.builder(
+                          shrinkWrap: true,
+                          padding: EdgeInsets.all(16),
+                          itemCount: todos.length,
+                          itemBuilder: (context, index) {
+                            final todo = todos[index];
+                            final isCompleted = todo['done'] == 1;
+
+                            return Container(
+                              margin: EdgeInsets.only(bottom: 12),
+                              decoration: BoxDecoration(
+                                color: isCompleted
+                                    ? Colors.green.shade50
+                                    : Colors.blue.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isCompleted
+                                      ? Colors.green.shade200
+                                      : Colors.blue.shade200,
+                                  width: 1,
+                                ),
+                              ),
+                              child: ListTile(
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8
+                                ),
+                                leading: Container(
+                                  width: 24,
+                                  height: 24,
+                                  child: Checkbox(
+                                    value: isCompleted,
+                                    onChanged: (bool? value) async {
+                                      if (value != null) {
+                                        try {
+                                          await _apiService.updateTodo(
+                                            todo['todoId'],
+                                            value ? 1 : 0,
+                                          );
+
+                                          setState(() {
+                                            todo['done'] = value ? 1 : 0;
+                                          });
+                                          await _updateTodoCount();
+
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                _currentLanguage == 'ja'
+                                                    ? 'タスクが更新されました'
+                                                    : 'Task updated successfully',
+                                              ),
+                                              duration: Duration(seconds: 2),
+                                            ),
+                                          );
+                                        } catch (e) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                _currentLanguage == 'ja'
+                                                    ? 'エラーが発生しました'
+                                                    : 'Error updating task',
+                                              ),
+                                              backgroundColor: Colors.red,
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    },
+                                    activeColor: Colors.green,
+                                  ),
+                                ),
+                                title: Text(
+                                  todo['task'] ?? '',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    decoration: isCompleted
+                                        ? TextDecoration.lineThrough
+                                        : TextDecoration.none,
+                                    color: isCompleted
+                                        ? Colors.grey[600]
+                                        : Colors.grey[800],
+                                  ),
+                                ),
+                                subtitle: Padding(
+                                  padding: EdgeInsets.only(top: 4),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.access_time,
+                                        size: 14,
+                                        color: Colors.grey[500],
+                                      ),
+                                      SizedBox(width: 4),
+                                      Text(
+                                        _formatDateTime(todo['stamp']),
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[500],
+                                        ),
+                                      ),
+                                      Spacer(),
+                                      Container(
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: 8,
+                                            vertical: 2
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: isCompleted
+                                              ? Colors.green
+                                              : Colors.orange,
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Text(
+                                          isCompleted
+                                              ? (_currentLanguage == 'ja' ? '完了' : 'Done')
+                                              : (_currentLanguage == 'ja' ? '進行中' : 'Ongoing'),
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _currentLanguage == 'ja'
+                ? 'タスクの読み込みエラー'
+                : 'Error loading tasks',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  String _formatDateTime(String dateTimeStr) {
+    try {
+      final dateTime = DateTime.parse(dateTimeStr);
+      return DateFormat('MMM dd, HH:mm').format(dateTime);
+    } catch (e) {
+      return dateTimeStr;
+    }
+  }
   Widget _buildInfoCard({
     required String title,
     required Widget content,
@@ -981,7 +1291,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       });
 
       try {
-        // First check for active login before proceeding
         final activeLoginCheck = await _apiService.checkActiveLogin(_idController.text);
         if (activeLoginCheck["hasActiveLogin"] == true) {
           String deviceInfo = activeLoginCheck["phoneName"] ?? activeLoginCheck["deviceID"] ?? "another device";
@@ -1002,10 +1311,8 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           return;
         }
 
-        // Show phone condition dialog before anything else
         final phoneConditionResult = await _showPhoneConditionDialogIn();
         if (phoneConditionResult == null) {
-          // User cancelled the dialog
           setState(() {
             _isLoading = false;
           });
@@ -1014,20 +1321,17 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 
         String phoneCondition = phoneConditionResult['phoneCondition'] ?? 'Good';
 
-        // Proceed with insertIdNumber only after phone condition is provided
         final actualIdNumber = await _apiService.insertIdNumber(
           _idController.text,
           deviceId: _deviceId!,
         );
 
-        // Proceed with WTR using phone condition
         final wtrResponse = await _apiService.insertWTR(
           actualIdNumber,
           deviceId: _deviceId!,
           phoneCondition: phoneCondition,
         );
 
-        // Fetch profile using actual ID
         final profileData = await _apiService.fetchProfile(actualIdNumber);
 
         if (profileData["success"] == true) {
@@ -1039,7 +1343,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           String fallbackUrl = "${ApiService.apiUrls[1]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
           bool isFallbackUrlValid = await _isImageAvailable(fallbackUrl);
 
-          // Fetch timeIn records
           final timeInData = await _apiService.fetchTimeIns(actualIdNumber);
           String? latestTimeIn = timeInData["latestTimeIn"] != null
               ? _formatTimeIn(timeInData["latestTimeIn"])
@@ -1067,7 +1370,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                 BirthdayCelebration.close(context);
               }
 
-              // Show new birthday celebration
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 showDialog(
                   context: context,
@@ -1089,7 +1391,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           }
         }
 
-        // Show late or relogin dialog if applicable
         if (wtrResponse['isLate'] == true || wtrResponse['isRelogin'] == true) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
             showDialog(
@@ -1633,6 +1934,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     qrController?.dispose();
     _idController.dispose();
     _timer?.cancel();
+    _todoTimer?.cancel();
     super.dispose();
   }
 
@@ -2085,35 +2387,108 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                         children: [
                           Column(
                             children: [
-                              Container(
-                                width: 140,
-                                height: 140,
-                                margin: const EdgeInsets.only(bottom: 8),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.blue[50],
-                                  border: Border.all(
-                                    color: const Color(0xFF3452B4),
-                                    width: 3,
-                                  ),
-                                ),
-                                child: _profilePictureUrl != null
-                                    ? ClipOval(
-                                  child: Image.network(
-                                    _profilePictureUrl!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => Icon(
+                              Stack(
+                                children: [
+                                  Container(
+                                    width: 140,
+                                    height: 140,
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.blue[50],
+                                      border: Border.all(
+                                        color: const Color(0xFF3452B4),
+                                        width: 3,
+                                      ),
+                                    ),
+                                    child: _profilePictureUrl != null
+                                        ? ClipOval(
+                                      child: Image.network(
+                                        _profilePictureUrl!,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) => Icon(
+                                          Icons.person,
+                                          size: 70,
+                                          color: const Color(0xFF3452B4),
+                                        ),
+                                      ),
+                                    )
+                                        : Icon(
                                       Icons.person,
                                       size: 70,
                                       color: const Color(0xFF3452B4),
                                     ),
                                   ),
-                                )
-                                    : Icon(
-                                  Icons.person,
-                                  size: 70,
-                                  color: const Color(0xFF3452B4),
-                                ),
+                                  if (_isLoggedIn)
+                                    Positioned(
+                                      top: 0,
+                                      right: 0,
+                                      child: GestureDetector(
+                                        onTap: _showTodoDialog,
+                                        child: Container(
+                                          width: 40,
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                              colors: [Color(0xFF3452B4), Color(0xFF2053B3)],
+                                            ),
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: Colors.white, width: 2),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.2),
+                                                spreadRadius: 1,
+                                                blurRadius: 4,
+                                                offset: Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Stack(
+                                            clipBehavior: Clip.none,
+                                            children: [
+                                              Center(
+                                                child: Icon(
+                                                  Icons.checklist,
+                                                  color: Colors.white,
+                                                  size: 22,
+                                                ),
+                                              ),
+                                              if (_todoCount > 0)
+                                                Positioned(
+                                                  top: -4,
+                                                  right: -4,
+                                                  child: Container(
+                                                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.red,
+                                                      shape: BoxShape.circle,
+                                                      border: Border.all(color: Colors.white, width: 1.5),
+                                                    ),
+                                                    constraints: BoxConstraints(
+                                                      minWidth: 18,
+                                                      minHeight: 18,
+                                                    ),
+                                                    child: Center(
+                                                      child: Text(
+                                                        _todoCount > 99 ? '99+' : _todoCount.toString(),
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 10, // bigger font size
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                        textAlign: TextAlign.center,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                               if (_firstName != null || _surName != null) ...[
                                 Text(
