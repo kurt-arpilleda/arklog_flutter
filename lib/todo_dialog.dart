@@ -96,7 +96,118 @@ class _TodoDialogState extends State<TodoDialog> {
       );
     }
   }
+  Future<void> _showAddTodoDialog() async {
+    final TextEditingController taskController = TextEditingController();
+    final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          title: Text(
+            widget.currentLanguage == 'ja' ? 'タスクを追加' : 'Add Task',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF3452B4),
+            ),
+          ),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: taskController,
+              decoration: InputDecoration(
+                labelText: widget.currentLanguage == 'ja' ? 'タスクを入力' : 'Enter task',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                prefixIcon: Icon(Icons.task, color: Color(0xFF3452B4)),
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return widget.currentLanguage == 'ja'
+                      ? 'タスクを入力してください'
+                      : 'Please enter a task';
+                }
+                return null;
+              },
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (value) {
+                if (formKey.currentState!.validate()) {
+                  Navigator.of(context).pop();
+                  _addNewTodo(taskController.text.trim());
+                }
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(
+                widget.currentLanguage == 'ja' ? 'キャンセル' : 'Cancel',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (formKey.currentState!.validate()) {
+                  Navigator.of(context).pop();
+                  _addNewTodo(taskController.text.trim());
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Color(0xFF3452B4),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              child: Text(
+                widget.currentLanguage == 'ja' ? '追加' : 'ADD',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+  Future<void> _addNewTodo(String task) async {
+    try {
+      await _apiService.addTodo(widget.currentIdNumber, task);
+      await _fetchTodos();
+      await widget.updateTodoCount();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.currentLanguage == 'ja'
+                ? 'タスクが追加されました'
+                : 'Task added successfully',
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            widget.currentLanguage == 'ja'
+                ? 'タスクの追加に失敗しました'
+                : 'Failed to add task',
+          ),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -313,6 +424,30 @@ class _TodoDialogState extends State<TodoDialog> {
                     ),
                   );
                 },
+              ),
+            ),
+            Container(
+              padding: EdgeInsets.all(16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showAddTodoDialog(),
+                  icon: Icon(Icons.add, color: Colors.white),
+                  label: Text(
+                    widget.currentLanguage == 'ja' ? 'タスクを追加' : 'Add Task',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF3452B4),
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
               ),
             ),
           ],
