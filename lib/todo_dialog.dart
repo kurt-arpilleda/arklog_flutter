@@ -552,70 +552,57 @@ class _TodoDialogState extends State<TodoDialog> {
             ),
             Container(
               padding: EdgeInsets.all(16),
-              child: SizedBox(
-                width: double.infinity,
-                child: _isDeleteMode
-                    ? Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _toggleDeleteMode,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey,
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  if (_isDeleteMode)
+                    Row(
+                      children: [
+                        ElevatedButton(
+                          onPressed: _toggleDeleteMode,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey,
+                            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: Text(
+                            widget.currentLanguage == 'ja' ? 'キャンセル' : 'CANCEL',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                        child: Text(
-                          widget.currentLanguage == 'ja' ? 'キャンセル' : 'CANCEL',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
+                        SizedBox(width: 10),
+                        ElevatedButton(
+                          onPressed: _deleteSelectedTodos,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            padding: EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          child: Text(
+                            widget.currentLanguage == 'ja' ? '削除' : 'DELETE',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
-                      ),
+                      ],
+                    )
+                  else
+                    FloatingActionButton(
+                      onPressed: () => _showAddTodoDialog(),
+                      backgroundColor: Color(0xFF3452B4),
+                      mini: true,
+                      child: Icon(Icons.add, color: Colors.white),
                     ),
-                    SizedBox(width: 10),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _deleteSelectedTodos,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                        child: Text(
-                          widget.currentLanguage == 'ja' ? '削除' : 'DELETE',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-                    : ElevatedButton.icon(
-                  onPressed: () => _showAddTodoDialog(),
-                  icon: Icon(Icons.add, color: Colors.white),
-                  label: Text(
-                    widget.currentLanguage == 'ja' ? 'タスクを追加' : 'Add Task',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF3452B4),
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
+                ],
               ),
             ),
           ],
