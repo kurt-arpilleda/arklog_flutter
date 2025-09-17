@@ -21,6 +21,7 @@ class TodoDialog extends StatefulWidget {
 class _TodoDialogState extends State<TodoDialog> {
   final ApiService _apiService = ApiService();
   List<Map<String, dynamic>> _todos = [];
+  List<Map<String, dynamic>> _softwareLinks = [];
   bool _isLoading = true;
   bool _isDeleteMode = false;
   bool _isEditMode = false;
@@ -30,7 +31,14 @@ class _TodoDialogState extends State<TodoDialog> {
   @override
   void initState() {
     super.initState();
-    _fetchTodos();
+    _initializeData();
+  }
+
+  Future<void> _initializeData() async {
+    await Future.wait([
+      _fetchTodos(),
+      _fetchSoftwareLinks(),
+    ]);
   }
 
   Future<void> _fetchTodos() async {
@@ -38,12 +46,8 @@ class _TodoDialogState extends State<TodoDialog> {
       final todoData = await _apiService.fetchTodos(widget.currentIdNumber);
       setState(() {
         _todos = List<Map<String, dynamic>>.from(todoData['todos'] ?? []);
-        _isLoading = false;
       });
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -54,6 +58,21 @@ class _TodoDialogState extends State<TodoDialog> {
           backgroundColor: Colors.red,
         ),
       );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _fetchSoftwareLinks() async {
+    try {
+      final softwareData = await _apiService.fetchSoftwareLinks();
+      setState(() {
+        _softwareLinks = softwareData;
+      });
+    } catch (e) {
+      print('Error loading software links: $e');
     }
   }
 
@@ -101,86 +120,125 @@ class _TodoDialogState extends State<TodoDialog> {
     }
   }
 
-  Future<void> _editTodo(int todoId, String currentTask) async {
+  Future<void> _editTodo(int todoId, String currentTask, String currentAppToOpen) async {
     final TextEditingController taskController = TextEditingController(text: currentTask);
+    String selectedApp = currentAppToOpen;
     final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
     final result = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          title: Text(
-            widget.currentLanguage == 'ja' ? 'タスクを編集' : 'Edit Task',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF3452B4),
-            ),
-          ),
-          content: IntrinsicHeight(
-            child: Form(
-              key: formKey,
-              child: TextFormField(
-                controller: taskController,
-                decoration: InputDecoration(
-                  labelText: widget.currentLanguage == 'ja' ? 'タスクを編集' : 'Edit task',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              title: Text(
+                widget.currentLanguage == 'ja' ? 'タスクを編集' : 'Edit Task',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF3452B4),
+                ),
+              ),
+              content: IntrinsicHeight(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: taskController,
+                        decoration: InputDecoration(
+                          labelText: widget.currentLanguage == 'ja' ? 'タスクを編集' : 'Edit task',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return widget.currentLanguage == 'ja'
+                                ? 'タスクを入力してください'
+                                : 'Please enter a task';
+                          }
+                          return null;
+                        },
+                        autofocus: true,
+                        textInputAction: TextInputAction.next,
+                        maxLines: null,
+                        keyboardType: TextInputType.multiline,
+                      ),
+                      SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        value: selectedApp.isEmpty ? null : selectedApp,
+                        decoration: InputDecoration(
+                          labelText: widget.currentLanguage == 'ja' ? 'アプリを選択' : 'Select Application',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        items: [
+                          DropdownMenuItem<String>(
+                            value: null,
+                            child: Text(
+                              widget.currentLanguage == 'ja' ? 'なし' : 'None',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          ),
+                          ..._softwareLinks.map((software) {
+                            return DropdownMenuItem<String>(
+                              value: software['linkID'].toString(),
+                              child: Text(software['softwareName']),
+                            );
+                          }).toList(),
+                        ],
+                        onChanged: (String? newValue) {
+                          setModalState(() {
+                            selectedApp = newValue ?? '';
+                          });
+                        },
+                      ),
+                    ],
                   ),
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return widget.currentLanguage == 'ja'
-                        ? 'タスクを入力してください'
-                        : 'Please enter a task';
-                  }
-                  return null;
-                },
-                autofocus: true,
-                textInputAction: TextInputAction.done,
-                maxLines: null,
-                keyboardType: TextInputType.multiline,
               ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: Text(
-                widget.currentLanguage == 'ja' ? 'キャンセル' : 'Cancel',
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (formKey.currentState!.validate()) {
-                  Navigator.of(context).pop(true);
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF3452B4),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(
+                    widget.currentLanguage == 'ja' ? 'キャンセル' : 'Cancel',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
                 ),
-              ),
-              child: Text(
-                widget.currentLanguage == 'ja' ? '保存' : 'SAVE',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+                ElevatedButton(
+                  onPressed: () {
+                    if (formKey.currentState!.validate()) {
+                      Navigator.of(context).pop(true);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF3452B4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    widget.currentLanguage == 'ja' ? '保存' : 'SAVE',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         );
       },
     );
 
     if (result == true) {
       try {
-        await _apiService.editTodo(todoId, taskController.text.trim());
+        await _apiService.editTodo(todoId, taskController.text.trim(), selectedApp);
         await _fetchTodos();
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -212,92 +270,124 @@ class _TodoDialogState extends State<TodoDialog> {
 
   Future<void> _showAddTodoDialog() async {
     final TextEditingController taskController = TextEditingController();
+    String selectedApp = '';
     final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          title: Text(
-            widget.currentLanguage == 'ja' ? 'タスクを追加' : 'Add Task',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF3452B4),
-            ),
-          ),
-          content: IntrinsicHeight(
-            child: Form(
-              key: formKey,
-              child: TextFormField(
-                controller: taskController,
-                decoration: InputDecoration(
-                  labelText: widget.currentLanguage == 'ja' ? 'タスクを入力' : 'Enter task',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              title: Text(
+                widget.currentLanguage == 'ja' ? 'タスクを追加' : 'Add Task',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF3452B4),
+                ),
+              ),
+              content: IntrinsicHeight(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    children: [
+                      TextFormField(
+                        controller: taskController,
+                        decoration: InputDecoration(
+                          labelText: widget.currentLanguage == 'ja' ? 'タスクを入力' : 'Enter task',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return widget.currentLanguage == 'ja'
+                                ? 'タスクを入力してください'
+                                : 'Please enter a task';
+                          }
+                          return null;
+                        },
+                        autofocus: true,
+                        textInputAction: TextInputAction.next,
+                        maxLines: null,
+                        keyboardType: TextInputType.multiline,
+                      ),
+                      SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        decoration: InputDecoration(
+                          labelText: widget.currentLanguage == 'ja' ? 'アプリを選択' : 'Select Application',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        items: [
+                          DropdownMenuItem<String>(
+                            value: '',
+                            child: Text(
+                              widget.currentLanguage == 'ja' ? 'なし' : 'None',
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          ),
+                          ..._softwareLinks.map((software) {
+                            return DropdownMenuItem<String>(
+                              value: software['linkID'].toString(),
+                              child: Text(software['softwareName']),
+                            );
+                          }).toList(),
+                        ],
+                        onChanged: (String? newValue) {
+                          setModalState(() {
+                            selectedApp = newValue ?? '';
+                          });
+                        },
+                      ),
+                    ],
                   ),
                 ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return widget.currentLanguage == 'ja'
-                        ? 'タスクを入力してください'
-                        : 'Please enter a task';
-                  }
-                  return null;
-                },
-                autofocus: true,
-                textInputAction: TextInputAction.done,
-                maxLines: null,
-                keyboardType: TextInputType.multiline,
-                onFieldSubmitted: (value) {
-                  if (formKey.currentState!.validate()) {
-                    Navigator.of(context).pop();
-                    _addNewTodo(taskController.text.trim());
-                  }
-                },
               ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(
-                widget.currentLanguage == 'ja' ? 'キャンセル' : 'Cancel',
-                style: TextStyle(color: Colors.grey[600]),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (formKey.currentState!.validate()) {
-                  Navigator.of(context).pop();
-                  _addNewTodo(taskController.text.trim());
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Color(0xFF3452B4),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(
+                    widget.currentLanguage == 'ja' ? 'キャンセル' : 'Cancel',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
                 ),
-              ),
-              child: Text(
-                widget.currentLanguage == 'ja' ? '追加' : 'ADD',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+                ElevatedButton(
+                  onPressed: () {
+                    if (formKey.currentState!.validate()) {
+                      Navigator.of(context).pop();
+                      _addNewTodo(taskController.text.trim(), selectedApp);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF3452B4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    widget.currentLanguage == 'ja' ? '追加' : 'ADD',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         );
       },
     );
   }
 
-  Future<void> _addNewTodo(String task) async {
+  Future<void> _addNewTodo(String task, String appToOpen) async {
     try {
-      await _apiService.addTodo(widget.currentIdNumber, task);
+      await _apiService.addTodo(widget.currentIdNumber, task, appToOpen);
       await _fetchTodos();
       await widget.updateTodoCount();
 
@@ -591,6 +681,7 @@ class _TodoDialogState extends State<TodoDialog> {
                   final todo = _todos[index];
                   final isCompleted = todo['done'] == 1;
                   final isSelected = _selectedTodos.contains(todo['todoId']);
+                  final softwareName = todo['softwareName'] ?? '';
 
                   return Container(
                     margin: EdgeInsets.only(bottom: 12),
@@ -654,45 +745,72 @@ class _TodoDialogState extends State<TodoDialog> {
                       ),
                       subtitle: Padding(
                         padding: EdgeInsets.only(top: 4),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              Icons.access_time,
-                              size: 14,
-                              color: Colors.grey[500],
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              _formatDateTime(todo['stamp']),
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[500],
+                            if (softwareName.isNotEmpty)
+                              Padding(
+                                padding: EdgeInsets.only(bottom: 4),
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.apps,
+                                      size: 14,
+                                      color: Colors.blue[600],
+                                    ),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      softwareName,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.blue[600],
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            Spacer(),
-                            if (!_isDeleteMode && !_isEditMode)
-                              Container(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.access_time,
+                                  size: 14,
+                                  color: Colors.grey[500],
                                 ),
-                                decoration: BoxDecoration(
-                                  color: isCompleted
-                                      ? Colors.green
-                                      : Colors.orange,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  isCompleted
-                                      ? (widget.currentLanguage == 'ja' ? '完了' : 'Done')
-                                      : (widget.currentLanguage == 'ja' ? '進行中' : 'Ongoing'),
+                                SizedBox(width: 4),
+                                Text(
+                                  _formatDateTime(todo['stamp']),
                                   style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    color: Colors.grey[500],
                                   ),
                                 ),
-                              ),
+                                Spacer(),
+                                if (!_isDeleteMode && !_isEditMode)
+                                  Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isCompleted
+                                          ? Colors.green
+                                          : Colors.orange,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: Text(
+                                      isCompleted
+                                          ? (widget.currentLanguage == 'ja' ? '完了' : 'Done')
+                                          : (widget.currentLanguage == 'ja' ? '進行中' : 'Ongoing'),
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -743,7 +861,7 @@ class _TodoDialogState extends State<TodoDialog> {
                             if (_selectedTodos.isNotEmpty) {
                               final todoId = _selectedTodos.first;
                               final todo = _todos.firstWhere((t) => t['todoId'] == todoId);
-                              _editTodo(todoId, todo['task']);
+                              _editTodo(todoId, todo['task'], todo['appToOpen'] ?? '');
                             }
                           },
                           style: ElevatedButton.styleFrom(
