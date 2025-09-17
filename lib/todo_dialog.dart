@@ -253,7 +253,10 @@ class _TodoDialogState extends State<TodoDialog> {
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
               child: Text(widget.currentLanguage == 'ja' ? '削除' : 'Delete'),
             ),
           ],
