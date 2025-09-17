@@ -682,6 +682,7 @@ class _TodoDialogState extends State<TodoDialog> {
                   final isCompleted = todo['done'] == 1;
                   final isSelected = _selectedTodos.contains(todo['todoId']);
                   final softwareName = todo['softwareName'] ?? '';
+                  final appToOpen = todo['appToOpen']?.toString() ?? '';
 
                   return Container(
                     margin: EdgeInsets.only(bottom: 12),
@@ -815,7 +816,9 @@ class _TodoDialogState extends State<TodoDialog> {
                         ),
                       ),
                       onTap: () {
-                        if (_isDeleteMode || _isEditMode) {
+                        if (_isEditMode && _selectedTodos.isEmpty) {
+                          _editTodo(todo['todoId'], todo['task'] ?? '', appToOpen);
+                        } else if (_isDeleteMode || _isEditMode) {
                           _toggleTodoSelection(todo['todoId']);
                         }
                       },
@@ -861,7 +864,8 @@ class _TodoDialogState extends State<TodoDialog> {
                             if (_selectedTodos.isNotEmpty) {
                               final todoId = _selectedTodos.first;
                               final todo = _todos.firstWhere((t) => t['todoId'] == todoId);
-                              _editTodo(todoId, todo['task'], todo['appToOpen'] ?? '');
+                              final appToOpen = todo['appToOpen']?.toString() ?? '';
+                              _editTodo(todoId, todo['task'] ?? '', appToOpen);
                             }
                           },
                           style: ElevatedButton.styleFrom(
