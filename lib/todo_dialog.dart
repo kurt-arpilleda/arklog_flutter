@@ -22,6 +22,8 @@ class _TodoDialogState extends State<TodoDialog> {
   final ApiService _apiService = ApiService();
   List<Map<String, dynamic>> _todos = [];
   bool _isLoading = true;
+  bool _isDeleteMode = false;
+  Set<int> _selectedTodos = Set<int>();
 
   @override
   void initState() {
@@ -96,6 +98,7 @@ class _TodoDialogState extends State<TodoDialog> {
       );
     }
   }
+
   Future<void> _showAddTodoDialog() async {
     final TextEditingController taskController = TextEditingController();
     final GlobalKey<FormState> formKey = GlobalKey<FormState>();
@@ -177,6 +180,7 @@ class _TodoDialogState extends State<TodoDialog> {
       },
     );
   }
+
   Future<void> _addNewTodo(String task) async {
     try {
       await _apiService.addTodo(widget.currentIdNumber, task);
@@ -208,6 +212,87 @@ class _TodoDialogState extends State<TodoDialog> {
       );
     }
   }
+
+  void _toggleDeleteMode() {
+    setState(() {
+      _isDeleteMode = !_isDeleteMode;
+      _selectedTodos.clear();
+    });
+  }
+
+  void _toggleTodoSelection(int todoId) {
+    setState(() {
+      if (_selectedTodos.contains(todoId)) {
+        _selectedTodos.remove(todoId);
+      } else {
+        _selectedTodos.add(todoId);
+      }
+    });
+  }
+
+  Future<void> _deleteSelectedTodos() async {
+    if (_selectedTodos.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            widget.currentLanguage == 'ja' ? '確認' : 'Confirm',
+            style: TextStyle(color: Colors.red),
+          ),
+          content: Text(
+            widget.currentLanguage == 'ja'
+                ? '${_selectedTodos.length}件のタスクを削除しますか？'
+                : 'Delete ${_selectedTodos.length} task(s)?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(widget.currentLanguage == 'ja' ? 'キャンセル' : 'Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: Text(widget.currentLanguage == 'ja' ? '削除' : 'Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true) {
+      try {
+        await _apiService.deleteTodos(_selectedTodos.toList());
+        await _fetchTodos();
+        await widget.updateTodoCount();
+        _toggleDeleteMode();
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.currentLanguage == 'ja'
+                  ? 'タスクを削除しました'
+                  : 'Tasks deleted successfully',
+            ),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              widget.currentLanguage == 'ja'
+                  ? '削除に失敗しました'
+                  : 'Failed to delete tasks',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -273,10 +358,17 @@ class _TodoDialogState extends State<TodoDialog> {
                       ],
                     ),
                   ),
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: Icon(Icons.close, color: Colors.white),
-                  ),
+                  if (_isDeleteMode)
+                    IconButton(
+                      onPressed: _toggleDeleteMode,
+                      icon: Icon(Icons.close, color: Colors.white),
+                      tooltip: widget.currentLanguage == 'ja' ? 'キャンセル' : 'Cancel',
+                    )
+                  else
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: Icon(Icons.close, color: Colors.white),
+                    ),
                 ],
               ),
             ),
@@ -329,96 +421,125 @@ class _TodoDialogState extends State<TodoDialog> {
                 itemBuilder: (context, index) {
                   final todo = _todos[index];
                   final isCompleted = todo['done'] == 1;
+                  final isSelected = _selectedTodos.contains(todo['todoId']);
 
-                  return Container(
-                    margin: EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: isCompleted
-                          ? Colors.green.shade50
-                          : Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isCompleted
-                            ? Colors.green.shade200
-                            : Colors.blue.shade200,
-                        width: 1,
+                  return GestureDetector(
+                    onLongPress: () {
+                      if (!_isDeleteMode) {
+                        _toggleDeleteMode();
+                      }
+                      _toggleTodoSelection(todo['todoId']);
+                    },
+                    onTap: () {
+                      if (_isDeleteMode) {
+                        _toggleTodoSelection(todo['todoId']);
+                      } else {
+                        _updateTodoStatus(todo['todoId'], isCompleted ? 0 : 1);
+                      }
+                    },
+                    child: Container(
+                      margin: EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? Colors.red.shade100
+                            : isCompleted
+                            ? Colors.green.shade50
+                            : Colors.blue.shade50,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected
+                              ? Colors.red
+                              : isCompleted
+                              ? Colors.green.shade200
+                              : Colors.blue.shade200,
+                          width: isSelected ? 2 : 1,
+                        ),
                       ),
-                    ),
-                    child: ListTile(
-                      contentPadding: EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      leading: Container(
-                        width: 24,
-                        height: 24,
-                        child: Checkbox(
-                          value: isCompleted,
-                          onChanged: (bool? value) async {
-                            if (value != null) {
-                              await _updateTodoStatus(
-                                todo['todoId'],
-                                value ? 1 : 0,
-                              );
-                            }
+                      child: ListTile(
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        leading: _isDeleteMode
+                            ? Checkbox(
+                          value: isSelected,
+                          onChanged: (bool? value) {
+                            _toggleTodoSelection(todo['todoId']);
                           },
-                          activeColor: Colors.green,
+                          activeColor: Colors.red,
+                        )
+                            : Container(
+                          width: 24,
+                          height: 24,
+                          child: Checkbox(
+                            value: isCompleted,
+                            onChanged: (bool? value) {
+                              if (value != null) {
+                                _updateTodoStatus(
+                                  todo['todoId'],
+                                  value ? 1 : 0,
+                                );
+                              }
+                            },
+                            activeColor: Colors.green,
+                          ),
                         ),
-                      ),
-                      title: Text(
-                        todo['task'] ?? '',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          decoration: isCompleted
-                              ? TextDecoration.lineThrough
-                              : TextDecoration.none,
-                          color: isCompleted
-                              ? Colors.grey[600]
-                              : Colors.grey[800],
+                        title: Text(
+                          todo['task'] ?? '',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                            decoration: isCompleted
+                                ? TextDecoration.lineThrough
+                                : TextDecoration.none,
+                            color: isCompleted
+                                ? Colors.grey[600]
+                                : Colors.grey[800],
+                          ),
                         ),
-                      ),
-                      subtitle: Padding(
-                        padding: EdgeInsets.only(top: 4),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.access_time,
-                              size: 14,
-                              color: Colors.grey[500],
-                            ),
-                            SizedBox(width: 4),
-                            Text(
-                              _formatDateTime(todo['stamp']),
-                              style: TextStyle(
-                                fontSize: 12,
+                        subtitle: Padding(
+                          padding: EdgeInsets.only(top: 4),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.access_time,
+                                size: 14,
                                 color: Colors.grey[500],
                               ),
-                            ),
-                            Spacer(),
-                            Container(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: isCompleted
-                                    ? Colors.green
-                                    : Colors.orange,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                isCompleted
-                                    ? (widget.currentLanguage == 'ja' ? '完了' : 'Done')
-                                    : (widget.currentLanguage == 'ja' ? '進行中' : 'Ongoing'),
+                              SizedBox(width: 4),
+                              Text(
+                                _formatDateTime(todo['stamp']),
                                 style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
+                                  fontSize: 12,
+                                  color: Colors.grey[500],
                                 ),
                               ),
-                            ),
-                          ],
+                              Spacer(),
+                              if (!_isDeleteMode)
+                                Container(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 2,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: isCompleted
+                                        ? Colors.green
+                                        : Colors.orange,
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    isCompleted
+                                        ? (widget.currentLanguage == 'ja' ? '完了' : 'Done')
+                                        : (widget.currentLanguage == 'ja' ? '進行中' : 'Ongoing'),
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -430,7 +551,51 @@ class _TodoDialogState extends State<TodoDialog> {
               padding: EdgeInsets.all(16),
               child: SizedBox(
                 width: double.infinity,
-                child: ElevatedButton.icon(
+                child: _isDeleteMode
+                    ? Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _toggleDeleteMode,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.grey,
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(
+                          widget.currentLanguage == 'ja' ? 'キャンセル' : 'CANCEL',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _deleteSelectedTodos,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          padding: EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(
+                          widget.currentLanguage == 'ja' ? '削除' : 'DELETE',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+                    : ElevatedButton.icon(
                   onPressed: () => _showAddTodoDialog(),
                   icon: Icon(Icons.add, color: Colors.white),
                   label: Text(
