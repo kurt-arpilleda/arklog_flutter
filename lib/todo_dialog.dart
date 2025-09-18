@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'api_service.dart';
+import 'appToOpen.dart';
 
 class TodoDialog extends StatefulWidget {
   final String currentIdNumber;
@@ -117,6 +118,33 @@ class _TodoDialogState extends State<TodoDialog> {
           backgroundColor: Colors.red,
         ),
       );
+    }
+  }
+
+  Future<void> _handleTodoTap(Map<String, dynamic> todo) async {
+    if (_isDeleteMode || _isEditMode) {
+      _toggleTodoSelection(todo['todoId']);
+      return;
+    }
+
+    final appToOpenStr = todo['appToOpen']?.toString();
+    if (appToOpenStr != null && appToOpenStr.isNotEmpty && appToOpenStr != '0') {
+      final appId = int.tryParse(appToOpenStr);
+      if (appId != null && AppToOpen.appPackages.containsKey(appId)) {
+        final success = await AppToOpen.openApp(appId);
+        if (!success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                widget.currentLanguage == 'ja'
+                    ? 'アプリを開くことができませんでした'
+                    : 'Failed to open app',
+              ),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -815,13 +843,7 @@ class _TodoDialogState extends State<TodoDialog> {
                           ],
                         ),
                       ),
-                      onTap: () {
-                        if (_isEditMode && _selectedTodos.isEmpty) {
-                          _editTodo(todo['todoId'], todo['task'] ?? '', appToOpen);
-                        } else if (_isDeleteMode || _isEditMode) {
-                          _toggleTodoSelection(todo['todoId']);
-                        }
-                      },
+                      onTap: () => _handleTodoTap(todo),
                     ),
                   );
                 },

@@ -14,6 +14,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
     private val CHANNEL = "input_method_channel"
+    private val APP_LAUNCHER_CHANNEL = "app_launcher_channel"
     private val NOTIF_PACKAGE = "com.example.ark_notif"
     private val NOTIF_SERVICE = "com.example.ark_notif.RingMonitoringService"
     private val WORKSTART_PACKAGE = "com.example.workstart_finish"
@@ -34,6 +35,21 @@ class MainActivity : FlutterActivity() {
                 "openWorkStartApp" -> {
                     openWorkStartApp()
                     result.success(null)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, APP_LAUNCHER_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "openApp" -> {
+                    val packageName = call.argument<String>("packageName")
+                    if (packageName != null) {
+                        val success = openAppByPackageName(packageName)
+                        result.success(success)
+                    } else {
+                        result.error("INVALID_ARGUMENT", "Package name is required", null)
+                    }
                 }
                 else -> result.notImplemented()
             }
@@ -77,6 +93,21 @@ class MainActivity : FlutterActivity() {
             }
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    private fun openAppByPackageName(packageName: String): Boolean {
+        return try {
+            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+            if (launchIntent != null) {
+                startActivity(launchIntent)
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
         }
     }
 }
