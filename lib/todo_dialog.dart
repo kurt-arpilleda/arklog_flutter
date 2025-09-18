@@ -465,14 +465,21 @@ class _TodoDialogState extends State<TodoDialog> {
 
   void _toggleTodoSelection(int todoId) {
     setState(() {
-      if (_selectedTodos.contains(todoId)) {
-        _selectedTodos.remove(todoId);
-      } else {
-        _selectedTodos
-          ..clear()
-          ..add(todoId);
+      if (_isEditMode) {
+        if (_selectedTodos.contains(todoId)) {
+          _selectedTodos.clear();
+        } else {
+          _selectedTodos.clear();
+          _selectedTodos.add(todoId);
+        }
+      } else if (_isDeleteMode) {
+        if (_selectedTodos.contains(todoId)) {
+          _selectedTodos.remove(todoId);
+        } else {
+          _selectedTodos.add(todoId);
+        }
       }
-      _selectAll = _selectedTodos.length == _todos.length;
+      _selectAll = _todos.isNotEmpty && _selectedTodos.length == _todos.length;
     });
   }
 
