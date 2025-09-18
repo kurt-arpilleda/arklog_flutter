@@ -150,7 +150,7 @@ class _TodoDialogState extends State<TodoDialog> {
 
   Future<void> _editTodo(int todoId, String currentTask, String currentAppToOpen) async {
     final TextEditingController taskController = TextEditingController(text: currentTask);
-    String selectedApp = currentAppToOpen;
+    String selectedApp = (currentAppToOpen == '0') ? '' : currentAppToOpen;
     final GlobalKey<FormState> formKey = GlobalKey<FormState>();
 
     final result = await showDialog<bool>(
@@ -169,10 +169,11 @@ class _TodoDialogState extends State<TodoDialog> {
                   color: Color(0xFF3452B4),
                 ),
               ),
-              content: IntrinsicHeight(
+              content: SingleChildScrollView(
                 child: Form(
                   key: formKey,
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       TextFormField(
                         controller: taskController,
@@ -200,6 +201,7 @@ class _TodoDialogState extends State<TodoDialog> {
                         value: selectedApp.isEmpty ? null : selectedApp,
                         decoration: InputDecoration(
                           labelText: widget.currentLanguage == 'ja' ? 'アプリを選択' : 'Select Application',
+                          helperText: widget.currentLanguage == 'ja' ? '※任意' : '*Optional',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -317,10 +319,11 @@ class _TodoDialogState extends State<TodoDialog> {
                   color: Color(0xFF3452B4),
                 ),
               ),
-              content: IntrinsicHeight(
+              content: SingleChildScrollView(
                 child: Form(
                   key: formKey,
                   child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       TextFormField(
                         controller: taskController,
@@ -345,8 +348,10 @@ class _TodoDialogState extends State<TodoDialog> {
                       ),
                       SizedBox(height: 16),
                       DropdownButtonFormField<String>(
+                        value: selectedApp.isEmpty ? null : selectedApp,
                         decoration: InputDecoration(
                           labelText: widget.currentLanguage == 'ja' ? 'アプリを選択' : 'Select Application',
+                          helperText: widget.currentLanguage == 'ja' ? '※任意' : '*Optional',
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
