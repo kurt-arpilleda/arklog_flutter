@@ -468,7 +468,9 @@ class _TodoDialogState extends State<TodoDialog> {
       if (_selectedTodos.contains(todoId)) {
         _selectedTodos.remove(todoId);
       } else {
-        _selectedTodos.add(todoId);
+        _selectedTodos
+          ..clear()
+          ..add(todoId);
       }
       _selectAll = _selectedTodos.length == _todos.length;
     });
@@ -607,7 +609,7 @@ class _TodoDialogState extends State<TodoDialog> {
                           ),
                         ),
                         Text(
-                          '${_todos.length} ${widget.currentLanguage == 'ja' ? '件のタスク' : 'tasks'}',
+                          '${_todos.where((todo) => todo['done'] != 1).length} ${widget.currentLanguage == 'ja' ? '件の未完了タスク' : 'incomplete tasks'}',
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.9),
                             fontSize: 14,
