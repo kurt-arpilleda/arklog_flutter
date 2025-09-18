@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'api_service.dart';
-import 'appToOpen.dart';
 
 class TodoDialog extends StatefulWidget {
   final String currentIdNumber;
@@ -120,7 +120,19 @@ class _TodoDialogState extends State<TodoDialog> {
       );
     }
   }
+  Future<bool> _openApp(int linkID) async {
+    try {
+      final packageName = await _apiService.fetchAppPackage(linkID);
+      if (packageName.isEmpty) return false;
 
+      final platform = MethodChannel('app_launcher_channel');
+      final result = await platform.invokeMethod('openApp', {'packageName': packageName});
+      return result == true;
+    } catch (e) {
+      print('Failed to open app: $e');
+      return false;
+    }
+  }
   Future<void> _handleTodoTap(Map<String, dynamic> todo) async {
     if (_isDeleteMode || _isEditMode) {
       _toggleTodoSelection(todo['todoId']);
@@ -130,8 +142,8 @@ class _TodoDialogState extends State<TodoDialog> {
     final appToOpenStr = todo['appToOpen']?.toString();
     if (appToOpenStr != null && appToOpenStr.isNotEmpty && appToOpenStr != '0') {
       final appId = int.tryParse(appToOpenStr);
-      if (appId != null && AppToOpen.appPackages.containsKey(appId)) {
-        final success = await AppToOpen.openApp(appId);
+      if (appId != null) {
+        final success = await _openApp(appId);
         if (!success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(

@@ -1053,6 +1053,35 @@ class ApiService {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+  Future<String> fetchAppPackage(int linkID) async {
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchAppPackage.php?linkID=$linkID");
+          final response = await httpClient.get(uri);
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            if (data["success"] == true) {
+              return _ApiResult(data["appPackage"], apiUrl);
+            } else {
+              throw Exception(data["error"] ?? "Failed to fetch app package");
+            }
+          }
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
+        }
+      }
+    }
+    throw Exception("Both API URLs are unreachable after $maxRetries attempts");
+  }
 }
 
 class _ApiResult<T> {
