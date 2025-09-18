@@ -15,6 +15,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import '../birthday_celebration.dart';
+import '../todo_dialog.dart';
 
 class LoginScreenJP extends StatefulWidget {
   const LoginScreenJP({super.key});
@@ -52,6 +53,8 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   bool _isFlashOn = false;
   bool _isQrScannerOpen = false;
   String _phoneName = 'ARK LOG JP';
+  int _todoCount = 0;
+  Timer? _todoTimer;
   static const List<String> exemptedIds = ['1238', '0939', '1288', '1239', '1200', '0280', '0001'];
   @override
   void initState() {
@@ -60,6 +63,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     tz.initializeTimeZones();
     _initializeApp();
     _updateDateTime();
+    _todoTimer = Timer.periodic(Duration(seconds: 30), (Timer t) => _updateTodoCount());
     _timer = Timer.periodic(Duration(seconds: 1), (Timer t) => _updateDateTime());
 
   }
@@ -323,12 +327,15 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         String language = languageFlag == 2 ? "ja" : "en";
         await _updateLanguage(language);
 
+        final countData = await _apiService.fetchTodoCount(idNumber);
+
         setState(() {
           _firstName = profileData["firstName"];
           _surName = profileData["surName"];
           _profilePictureUrl = isPrimaryUrlValid ? primaryUrl : isFallbackUrlValid ? fallbackUrl : null;
           _currentIdNumber = idNumber;
           _latestTimeIn = latestTimeIn;
+          _todoCount = countData['count'] ?? 0;
         });
         if (profileData["birthdate"] != null) {
           final birthdate = DateTime.parse(profileData["birthdate"]);
@@ -363,6 +370,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     } catch (e) {
       print("Error fetching profile: $e");
     }
+    _updateTodoCount();
   }
   String _formatTimeIn(String timeIn) {
     try {
@@ -940,7 +948,34 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       ],
     );
   }
+  Future<void> _updateTodoCount() async {
+    if (_currentIdNumber != null && _isLoggedIn) {
+      try {
+        final countData = await _apiService.fetchTodoCount(_currentIdNumber!);
+        if (mounted) {
+          setState(() {
+            _todoCount = countData['count'] ?? 0;
+          });
+        }
+      } catch (e) {
+        debugPrint("Error fetching todo count: $e");
+      }
+    }
+  }
+  Future<void> _showTodoDialog() async {
+    if (_currentIdNumber == null) return;
 
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return TodoDialog(
+          currentIdNumber: _currentIdNumber!,
+          currentLanguage: _currentLanguage ?? 'en',
+          updateTodoCount: _updateTodoCount,
+        );
+      },
+    );
+  }
   Widget _buildInfoCard({
     required String title,
     required Widget content,
@@ -1634,6 +1669,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     qrController?.dispose();
     _idController.dispose();
     _timer?.cancel();
+    _todoTimer?.cancel();
     super.dispose();
   }
 
@@ -2085,35 +2121,108 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                         children: [
                           Column(
                             children: [
-                              Container(
-                                width: 140,
-                                height: 140,
-                                margin: const EdgeInsets.only(bottom: 8),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.blue[50],
-                                  border: Border.all(
-                                    color: const Color(0xFF3452B4),
-                                    width: 3,
-                                  ),
-                                ),
-                                child: _profilePictureUrl != null
-                                    ? ClipOval(
-                                  child: Image.network(
-                                    _profilePictureUrl!,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => Icon(
+                              Stack(
+                                children: [
+                                  Container(
+                                    width: 140,
+                                    height: 140,
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.blue[50],
+                                      border: Border.all(
+                                        color: const Color(0xFF3452B4),
+                                        width: 3,
+                                      ),
+                                    ),
+                                    child: _profilePictureUrl != null
+                                        ? ClipOval(
+                                      child: Image.network(
+                                        _profilePictureUrl!,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) => Icon(
+                                          Icons.person,
+                                          size: 70,
+                                          color: const Color(0xFF3452B4),
+                                        ),
+                                      ),
+                                    )
+                                        : Icon(
                                       Icons.person,
                                       size: 70,
                                       color: const Color(0xFF3452B4),
                                     ),
                                   ),
-                                )
-                                    : Icon(
-                                  Icons.person,
-                                  size: 70,
-                                  color: const Color(0xFF3452B4),
-                                ),
+                                  if (_isLoggedIn)
+                                    Positioned(
+                                      top: 0,
+                                      right: 0,
+                                      child: GestureDetector(
+                                        onTap: _showTodoDialog,
+                                        child: Container(
+                                          width: 40,
+                                          height: 40,
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              begin: Alignment.topLeft,
+                                              end: Alignment.bottomRight,
+                                              colors: [Color(0xFF3452B4), Color(0xFF2053B3)],
+                                            ),
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: Colors.white, width: 2),
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withOpacity(0.2),
+                                                spreadRadius: 1,
+                                                blurRadius: 4,
+                                                offset: Offset(0, 2),
+                                              ),
+                                            ],
+                                          ),
+                                          child: Stack(
+                                            clipBehavior: Clip.none,
+                                            children: [
+                                              Center(
+                                                child: Icon(
+                                                  Icons.checklist,
+                                                  color: Colors.white,
+                                                  size: 22,
+                                                ),
+                                              ),
+                                              if (_todoCount > 0)
+                                                Positioned(
+                                                  top: -4,
+                                                  right: -4,
+                                                  child: Container(
+                                                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                                    decoration: BoxDecoration(
+                                                      color: Colors.red,
+                                                      shape: BoxShape.circle,
+                                                      border: Border.all(color: Colors.white, width: 1.5),
+                                                    ),
+                                                    constraints: BoxConstraints(
+                                                      minWidth: 18,
+                                                      minHeight: 18,
+                                                    ),
+                                                    child: Center(
+                                                      child: Text(
+                                                        _todoCount > 99 ? '99+' : _todoCount.toString(),
+                                                        style: TextStyle(
+                                                          color: Colors.white,
+                                                          fontSize: 10, // bigger font size
+                                                          fontWeight: FontWeight.bold,
+                                                        ),
+                                                        textAlign: TextAlign.center,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                ],
                               ),
                               if (_firstName != null || _surName != null) ...[
                                 Text(

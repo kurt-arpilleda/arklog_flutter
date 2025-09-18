@@ -305,7 +305,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           _currentIdNumber = lastIdNumber;
         });
 
-        // Also fetch todo count specifically for this case
         final countData = await _apiService.fetchTodoCount(lastIdNumber);
         setState(() {
           _todoCount = countData['count'] ?? 0;
