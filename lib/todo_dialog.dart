@@ -652,6 +652,7 @@ class _TodoDialogState extends State<TodoDialog> {
                       onChanged: (bool? value) {
                         _toggleSelectAll();
                       },
+                      shape: CircleBorder(),
                     ),
                     Text(
                       widget.currentLanguage == 'ja' ? 'すべて選択' : 'Select All',
@@ -751,6 +752,7 @@ class _TodoDialogState extends State<TodoDialog> {
                           _toggleTodoSelection(todo['todoId']);
                         },
                         activeColor: _isDeleteMode ? Colors.red : Colors.blue,
+                        shape: CircleBorder(),
                       )
                           : Container(
                         width: 24,
@@ -766,6 +768,7 @@ class _TodoDialogState extends State<TodoDialog> {
                             }
                           },
                           activeColor: Colors.green,
+                          shape: CircleBorder(),
                         ),
                       ),
                       title: Text(
