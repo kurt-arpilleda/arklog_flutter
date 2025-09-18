@@ -7,16 +7,18 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const List<String> apiUrls = [
-    "http://192.168.254.163/",
-    "http://126.209.7.246/"
-  ];
+  static List<String> get apiUrls {
+    final prefs = SharedPreferences.getInstance();
+    final phorjp = prefs.then((prefs) => prefs.getString('phorjp') ?? 'ph');
+    return phorjp == 'jp'
+        ? ["http://192.168.1.213/", "http://220.157.175.232/"]
+        : ["http://192.168.254.163/", "http://126.209.7.246/"];
+  }
 
   static const Duration requestTimeout = Duration(seconds: 2);
   static const int maxRetries = 6;
   static const Duration initialRetryDelay = Duration(seconds: 1);
 
-  // Cache for the last working server index
   int? _lastWorkingServerIndex;
   late http.Client httpClient;
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
@@ -39,32 +41,34 @@ class ApiService {
     );
   }
 
-  // Helper method to make parallel requests and return the first successful response
   Future<T> _makeParallelRequest<T>(Future<T> Function(String apiUrl) requestFn) async {
-    // Try the last working server first if available
-    if (_lastWorkingServerIndex != null) {
+    final currentApiUrls = await _getCurrentApiUrls();
+
+    if (_lastWorkingServerIndex != null && _lastWorkingServerIndex! < currentApiUrls.length) {
       try {
-        final result = await requestFn(apiUrls[_lastWorkingServerIndex!])
+        final result = await requestFn(currentApiUrls[_lastWorkingServerIndex!])
             .timeout(requestTimeout);
         return result;
-      } catch (e) {
-        // If the last working server fails, proceed with parallel requests
-      }
+      } catch (e) {}
     }
 
-    // Create a list of futures for all API URLs
-    final futures = apiUrls.map((apiUrl) => requestFn(apiUrl).timeout(requestTimeout));
+    final futures = currentApiUrls.map((apiUrl) => requestFn(apiUrl).timeout(requestTimeout));
 
-    // Use Future.any to get the first successful response
     try {
       final result = await Future.any(futures);
-      // Remember which server worked
-      _lastWorkingServerIndex = apiUrls.indexOf((result as dynamic).apiUrlUsed ?? apiUrls[0]);
+      _lastWorkingServerIndex = currentApiUrls.indexOf((result as dynamic).apiUrlUsed ?? currentApiUrls[0]);
       return result;
     } catch (e) {
-      // If all parallel requests fail, throw an exception
       throw Exception("All API URLs are unreachable");
     }
+  }
+
+  Future<List<String>> _getCurrentApiUrls() async {
+    final prefs = await SharedPreferences.getInstance();
+    final phorjp = prefs.getString('phorjp') ?? 'ph';
+    return phorjp == 'jp'
+        ? ["http://192.168.1.213/", "http://220.157.175.232/"]
+        : ["http://192.168.254.163/", "http://126.209.7.246/"];
   }
 
   Future<Map<String, dynamic>> fetchProfile(String idNumber) async {
@@ -146,7 +150,7 @@ class ApiService {
           }
           throw Exception("HTTP ${response.statusCode}");
         });
-        return; // Success
+        return;
       } catch (e) {
         print("Attempt $attempt failed: $e");
         if (attempt < maxRetries) {
@@ -216,11 +220,11 @@ class ApiService {
     }
     throw Exception("Failed to check DTR record after $maxRetries attempts");
   }
+
   Future<Map<String, dynamic>> insertWTR(String idNumber, {required String deviceId, String phoneCondition = 'Good'}) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          // Check if there's an existing active WTR record first
           final checkUri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkActiveWTR.php");
           final checkResponse = await httpClient.post(
             checkUri,
@@ -231,7 +235,6 @@ class ApiService {
             final checkData = jsonDecode(checkResponse.body);
 
             if (checkData["success"] == true && checkData["hasActiveSessions"] == true) {
-              // Update the existing WTR record with phoneName and dateInDetail
               final updateUri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_existingInsert.php");
               final updateResponse = await httpClient.post(
                 updateUri,
@@ -256,7 +259,6 @@ class ApiService {
             }
           }
 
-          // If no active sessions or update failed, proceed with normal insertion
           final insertUri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_insertWTR.php");
           final response = await httpClient.post(
             insertUri,
@@ -270,7 +272,6 @@ class ApiService {
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
             if (data["success"] == true) {
-              // Check if there's an active login without logout
               if (data["hasActiveLogin"] == true) {
                 return _ApiResult({
                   "success": true,
@@ -278,7 +279,6 @@ class ApiService {
                   "hasActiveLogin": true,
                 }, apiUrl);
               }
-              // Check if WTR record already existed (completed session)
               if (data["alreadyExists"] == true) {
                 return _ApiResult({
                   "success": true,
@@ -310,7 +310,6 @@ class ApiService {
   }
 
   Future<String> insertIdNumber(String idNumber, {required String deviceId}) async {
-    // First check if ID exists and is active
     try {
       final exists = await _checkIdExistsAndActive(idNumber);
       if (!exists) {
@@ -320,7 +319,6 @@ class ApiService {
       throw Exception("This ID is not existing or is not active");
     }
 
-    // If ID exists and is active, proceed with the original logic
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
@@ -336,7 +334,6 @@ class ApiService {
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
             if (data["success"] == true) {
-              // Check if there's a DTR record before proceeding
               final dtrCheck = await _checkDTRRecord(data["idNumber"] ?? idNumber);
               if (!dtrCheck) {
                 throw Exception("Please Log first on DTR");
@@ -432,11 +429,9 @@ class ApiService {
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
             if (data["success"] == true) {
-              // Skip if already logged out
               if (data['alreadyLoggedOut'] == true) {
                 return _ApiResult(data, apiUrl);
               }
-              // Return undertime data if applicable
               return _ApiResult(data, apiUrl);
             } else {
               throw Exception(data["message"]);
@@ -607,7 +602,6 @@ class ApiService {
         }
       }
     }
-    // Return default name if all attempts fail
     return defaultPhoneName;
   }
 
@@ -680,6 +674,7 @@ class ApiService {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+
   Future<Map<String, dynamic>> getWorkTimeInfo(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -719,6 +714,7 @@ class ApiService {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+
   Future<Map<String, dynamic>> getTodayOutput(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -758,6 +754,7 @@ class ApiService {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+
   Future<Map<String, dynamic>> insertDailyPerformance(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -795,6 +792,7 @@ class ApiService {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+
   Future<Map<String, dynamic>> checkUnfinishedWork(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -820,6 +818,7 @@ class ApiService {
     }
     throw Exception("Failed to check unfinished work after $maxRetries attempts");
   }
+
   Future<Map<String, dynamic>> fetchTodos(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -915,6 +914,7 @@ class ApiService {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+
   Future<List<Map<String, dynamic>>> fetchSoftwareLinks() async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -1018,6 +1018,7 @@ class ApiService {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
+
   Future<Map<String, dynamic>> deleteTodos(List<int> todoIds) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -1053,7 +1054,7 @@ class ApiService {
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
 }
-// Helper class to track which API URL was used
+
 class _ApiResult<T> {
   final T value;
   final String apiUrlUsed;

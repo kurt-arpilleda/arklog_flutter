@@ -5,7 +5,6 @@ import '../pdfViewer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../api_service.dart';
-import 'api_serviceJP.dart';
 import 'package:unique_identifier/unique_identifier.dart';
 import 'package:http/http.dart' as http;
 import '../auto_update.dart';
@@ -27,7 +26,7 @@ class LoginScreenJP extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver {
   final TextEditingController _idController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  final ApiServiceJP _apiService = ApiServiceJP();
+  final ApiService _apiService = ApiService();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
   QRViewController? qrController;
@@ -308,10 +307,10 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       if (profileData["success"] == true) {
         String profilePictureFileName = profileData["picture"];
 
-        String primaryUrl = "${ApiServiceJP.apiUrls[0]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
+        String primaryUrl = "${ApiService.apiUrls[0]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
         bool isPrimaryUrlValid = await _isImageAvailable(primaryUrl);
 
-        String fallbackUrl = "${ApiServiceJP.apiUrls[1]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
+        String fallbackUrl = "${ApiService.apiUrls[1]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
         bool isFallbackUrlValid = await _isImageAvailable(fallbackUrl);
 
         // Fetch timeIn records
