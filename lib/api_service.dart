@@ -12,7 +12,7 @@ class ApiService {
     final phorjp = prefs.then((prefs) => prefs.getString('phorjp') ?? 'ph');
     return phorjp == 'jp'
         ? ["http://192.168.1.213/", "http://220.157.175.232/"]
-        : ["http://192.168.254.163/", "http://126.209.7.246/"];
+        : ["http://192.168.254.163/", "http://13.19.11.218/"];
   }
 
   static const Duration requestTimeout = Duration(seconds: 2);

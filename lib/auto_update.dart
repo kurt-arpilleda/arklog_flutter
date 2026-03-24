@@ -14,7 +14,7 @@ class AutoUpdate {
   static const List<String> apiUrls = [
     "http://192.168.254.163/",
     "http://192.168.1.213/",
-    "http://126.209.7.246/",
+    "http://13.19.11.218/",
     "http://220.157.175.232/",
   ];
 
