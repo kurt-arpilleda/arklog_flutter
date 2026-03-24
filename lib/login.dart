@@ -980,14 +980,16 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   }
   Future<void> _checkReminder() async {
     try {
-      final reminderText = await _apiService.fetchReminder();
-      if (reminderText != null && reminderText.isNotEmpty && mounted) {
+      final reminderData = await _apiService.fetchReminder();
+      if (reminderData != null && reminderData['reminderText'] != null && reminderData['reminderText'].isNotEmpty && mounted) {
+        final countdown = reminderData['countdown'] ?? 6;
         showDialog(
           context: context,
           barrierDismissible: false,
           builder: (context) => _ReminderDialog(
-            reminderText: reminderText,
+            reminderText: reminderData['reminderText'],
             isJapanese: _currentLanguage == 'ja',
+            countdownSeconds: countdown,
           ),
         );
       }
@@ -2363,10 +2365,12 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 class _ReminderDialog extends StatefulWidget {
   final String reminderText;
   final bool isJapanese;
+  final int countdownSeconds;
 
   const _ReminderDialog({
     required this.reminderText,
     required this.isJapanese,
+    required this.countdownSeconds,
   });
 
   @override
@@ -2375,7 +2379,7 @@ class _ReminderDialog extends StatefulWidget {
 
 class _ReminderDialogState extends State<_ReminderDialog>
     with TickerProviderStateMixin {
-  int _countdown = 6;
+  int _countdown = 0;
   bool _canClose = false;
   bool _lightOn = true;
   Timer? _countdownTimer;
@@ -2388,6 +2392,7 @@ class _ReminderDialogState extends State<_ReminderDialog>
   @override
   void initState() {
     super.initState();
+    _countdown = widget.countdownSeconds;
 
     _pulseController = AnimationController(
       vsync: this,

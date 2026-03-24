@@ -1082,7 +1082,7 @@ class ApiService {
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
-  Future<String?> fetchReminder() async {
+  Future<Map<String, dynamic>?> fetchReminder() async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
@@ -1090,8 +1090,11 @@ class ApiService {
           final response = await httpClient.get(uri);
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
-            if (data["success"] == true && data.containsKey("reminderText")) {
-              return _ApiResult(data["reminderText"] as String?, apiUrl);
+            if (data["success"] == true) {
+              return _ApiResult<Map<String, dynamic>>({
+                "reminderText": data["reminderText"],
+                "countdown": data["countdown"] ?? 6
+              }, apiUrl);
             }
           }
           throw Exception("HTTP ${response.statusCode}");
