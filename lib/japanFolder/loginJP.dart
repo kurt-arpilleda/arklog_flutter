@@ -985,15 +985,10 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       if (reminderText != null && reminderText.isNotEmpty && mounted) {
         showDialog(
           context: context,
-          builder: (context) => AlertDialog(
-            title: Text(_currentLanguage == 'ja' ? 'お知らせ' : 'Reminder'),
-            content: Text(reminderText),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: Text(_currentLanguage == 'ja' ? '閉じる' : 'Close'),
-              ),
-            ],
+          barrierDismissible: false,
+          builder: (context) => _ReminderDialog(
+            reminderText: reminderText,
+            isJapanese: _currentLanguage == 'ja',
           ),
         );
       }
@@ -2370,6 +2365,437 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ReminderDialog extends StatefulWidget {
+  final String reminderText;
+  final bool isJapanese;
+
+  const _ReminderDialog({
+    required this.reminderText,
+    required this.isJapanese,
+  });
+
+  @override
+  State<_ReminderDialog> createState() => _ReminderDialogState();
+}
+
+class _ReminderDialogState extends State<_ReminderDialog>
+    with TickerProviderStateMixin {
+  int _countdown = 6;
+  bool _canClose = false;
+  bool _lightOn = true;
+  Timer? _countdownTimer;
+  Timer? _blinkTimer;
+  late AnimationController _pulseController;
+  late AnimationController _slideController;
+  late Animation<double> _pulseAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 0.85, end: 1.0).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+
+    _slideController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, -0.15),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _slideController, curve: Curves.easeOut));
+    _slideController.forward();
+
+    _blinkTimer = Timer.periodic(const Duration(milliseconds: 800), (_) {
+      if (mounted) {
+        setState(() {
+          _lightOn = !_lightOn;
+        });
+      }
+    });
+
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      if (_countdown > 1) {
+        setState(() {
+          _countdown--;
+        });
+      } else {
+        setState(() {
+          _canClose = true;
+        });
+        _countdownTimer?.cancel();
+        _blinkTimer?.cancel();
+        if (mounted) {
+          setState(() {
+            _lightOn = true;
+          });
+        }
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    _blinkTimer?.cancel();
+    _pulseController.dispose();
+    _slideController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final dialogWidth = (screenWidth * 0.92).clamp(0.0, 460.0);
+
+    return PopScope(
+      canPop: false,
+      child: SlideTransition(
+        position: _slideAnimation,
+        child: Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+          child: Container(
+            width: dialogWidth,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(24),
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F3460)],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF4FC3F7).withOpacity(0.3),
+                  blurRadius: 30,
+                  spreadRadius: 2,
+                ),
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.6),
+                  blurRadius: 20,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildHeader(),
+                _buildBody(),
+                _buildFooter(),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF0F3460).withOpacity(0.8),
+            const Color(0xFF533483).withOpacity(0.6),
+          ],
+        ),
+        border: Border(
+          bottom: BorderSide(
+            color: const Color(0xFF4FC3F7).withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          ScaleTransition(
+            scale: _pulseAnimation,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _lightOn
+                    ? const Color(0xFFFFD600)
+                    : const Color(0xFF4A4000),
+                boxShadow: _lightOn
+                    ? [
+                  BoxShadow(
+                    color: const Color(0xFFFFD600).withOpacity(0.8),
+                    blurRadius: 18,
+                    spreadRadius: 4,
+                  ),
+                  BoxShadow(
+                    color: const Color(0xFFFFD600).withOpacity(0.4),
+                    blurRadius: 30,
+                    spreadRadius: 8,
+                  ),
+                ]
+                    : [],
+              ),
+              child: Icon(
+                _lightOn ? Icons.lightbulb : Icons.lightbulb_outline,
+                color: _lightOn ? Colors.white : Colors.grey.shade600,
+                size: 22,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  widget.isJapanese ? 'お知らせ' : 'Reminder',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 400),
+                  child: Text(
+                    _lightOn
+                        ? (widget.isJapanese ? '● 点灯中' : '● Active Notice')
+                        : (widget.isJapanese ? '○ 消灯中' : '○ Standby'),
+                    style: TextStyle(
+                      color: _lightOn
+                          ? const Color(0xFFFFD600)
+                          : Colors.grey.shade500,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFF4FC3F7).withOpacity(0.5),
+                width: 1,
+              ),
+              color: const Color(0xFF4FC3F7).withOpacity(0.08),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.notifications_active,
+                    color: Color(0xFF4FC3F7), size: 14),
+                const SizedBox(width: 4),
+                Text(
+                  widget.isJapanese ? 'システム' : 'SYSTEM',
+                  style: const TextStyle(
+                    color: Color(0xFF4FC3F7),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 320),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(4),
+              color: const Color(0xFF4FC3F7).withOpacity(0.15),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 4,
+                  height: 4,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFF4FC3F7),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  widget.isJapanese ? '本文' : 'MESSAGE',
+                  style: const TextStyle(
+                    color: Color(0xFF4FC3F7),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  color: Colors.white.withOpacity(0.07),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.12),
+                    width: 1,
+                  ),
+                ),
+                child: Text(
+                  widget.reminderText,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14.5,
+                    height: 1.65,
+                    fontWeight: FontWeight.w400,
+                  ),
+                  softWrap: true,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+      child: Column(
+        children: [
+          if (!_canClose)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(3, (index) {
+                  final filled = index >= _countdown - 1;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    width: filled ? 28 : 10,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(3),
+                      color: filled
+                          ? const Color(0xFF4FC3F7)
+                          : Colors.white.withOpacity(0.2),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 400),
+            transitionBuilder: (child, animation) => ScaleTransition(
+              scale: animation,
+              child: child,
+            ),
+            child: _canClose
+                ? SizedBox(
+              width: double.infinity,
+              key: const ValueKey('close_btn'),
+              child: ElevatedButton.icon(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.check_circle_outline, size: 18),
+                label: Text(
+                  widget.isJapanese ? '閉じる' : 'Close',
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF4FC3F7),
+                  foregroundColor: const Color(0xFF0F3460),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 4,
+                  shadowColor: const Color(0xFF4FC3F7).withOpacity(0.5),
+                ),
+              ),
+            )
+                : SizedBox(
+              width: double.infinity,
+              key: const ValueKey('countdown_btn'),
+              child: ElevatedButton.icon(
+                onPressed: null,
+                icon: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      Colors.white.withOpacity(0.5),
+                    ),
+                  ),
+                ),
+                label: Text(
+                  widget.isJapanese
+                      ? '$_countdown 秒後に閉じられます'
+                      : 'Close in $_countdown...',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white.withOpacity(0.5),
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white.withOpacity(0.06),
+                  disabledBackgroundColor: Colors.white.withOpacity(0.06),
+                  disabledForegroundColor: Colors.white.withOpacity(0.4),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    side: BorderSide(
+                      color: Colors.white.withOpacity(0.15),
+                      width: 1,
+                    ),
+                  ),
+                  elevation: 0,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
