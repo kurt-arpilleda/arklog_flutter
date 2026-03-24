@@ -149,6 +149,9 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         // Normal flow if not exclusive user
         await _loadLastIdNumber();
       }
+      if (!_isLoggedIn) {
+        _checkReminder();
+      }
     } catch (e) {
       debugPrint("Error initializing app: $e");
     } finally {
@@ -975,6 +978,28 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         );
       },
     );
+  }
+  Future<void> _checkReminder() async {
+    try {
+      final reminderText = await _apiService.fetchReminder();
+      if (reminderText != null && reminderText.isNotEmpty && mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(_currentLanguage == 'ja' ? 'お知らせ' : 'Reminder'),
+            content: Text(reminderText),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(_currentLanguage == 'ja' ? '閉じる' : 'Close'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      print("Error fetching reminder: $e");
+    }
   }
   Widget _buildInfoCard({
     required String title,

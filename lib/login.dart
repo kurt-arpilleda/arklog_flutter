@@ -83,7 +83,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         });
       }
 
-      // Reset the exclusive user flag to false by default
       bool wasExclusive = _isExclusiveUser;
       setState(() {
         _isExclusiveUser = false;
@@ -96,19 +95,16 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           });
         } catch (e) {
           debugPrint("Error fetching phone name: $e");
-          // Continue with default name if fetch fails
         }
       }
-      // Check for exclusive login
+
       if (_deviceId != null) {
         try {
           final exclusiveCheck = await _apiService.checkExclusiveLogin(_deviceId!);
           if (exclusiveCheck['isExclusive'] == true) {
             final idNumber = exclusiveCheck['idNumber'];
 
-            // Check if ID number changed for an exclusive device
             if (_isLoggedIn && _currentIdNumber != idNumber) {
-              // ID number changed, handle the change
               setState(() {
                 _isLoggedIn = false;
                 _currentIdNumber = null;
@@ -123,21 +119,17 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 
             if (loginSuccess) {
               await _fetchProfile(idNumber);
-
-              // Also fetch todo count for exclusive user
               final countData = await _apiService.fetchTodoCount(idNumber);
-
               setState(() {
                 _isLoggedIn = true;
                 _currentIdNumber = idNumber;
                 _idController.text = idNumber;
                 _isExclusiveUser = true;
-                _todoCount = countData['count'] ?? 0; // ADD THIS LINE
+                _todoCount = countData['count'] ?? 0;
               });
-              return; // Skip the rest if exclusive login succeeded
+              return;
             }
           } else if (wasExclusive) {
-            // Device was previously exclusive but is no longer
             setState(() {
               _isLoggedIn = false;
               _currentIdNumber = null;
@@ -149,10 +141,12 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           }
         } catch (e) {
           debugPrint("Exclusive login check failed: $e");
-          // Continue with normal flow if exclusive check fails
         }
-        // Normal flow if not exclusive user
         await _loadLastIdNumber();
+      }
+
+      if (!_isLoggedIn) {
+        _checkReminder();
       }
     } catch (e) {
       debugPrint("Error initializing app: $e");
@@ -983,6 +977,28 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         );
       },
     );
+  }
+  Future<void> _checkReminder() async {
+    try {
+      final reminderText = await _apiService.fetchReminder();
+      if (reminderText != null && reminderText.isNotEmpty && mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(_currentLanguage == 'ja' ? 'お知らせ' : 'Reminder'),
+            content: Text(reminderText),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(_currentLanguage == 'ja' ? '閉じる' : 'Close'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      print("Error fetching reminder: $e");
+    }
   }
   Widget _buildInfoCard({
     required String title,
