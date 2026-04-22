@@ -1095,7 +1095,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 
     _isTranspoDialogVisible = true;
     final TextEditingController addressController = TextEditingController();
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
     int? selectedMode;
     bool isSubmitting = false;
 
@@ -1246,15 +1245,18 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                           onPressed: isSubmitting
                               ? null
                               : () async {
+                            FocusManager.instance.primaryFocus?.unfocus();
                             final presentAddress = addressController.text.trim();
                             if (presentAddress.isEmpty) {
-                              scaffoldMessenger.showSnackBar(
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Please enter your present address')),
                               );
                               return;
                             }
                             if (selectedMode == null) {
-                              scaffoldMessenger.showSnackBar(
+                              if (!mounted) return;
+                              ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(content: Text('Please select your transportation mode')),
                               );
                               return;
@@ -1283,8 +1285,8 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                               if (Navigator.of(context, rootNavigator: true).canPop()) {
                                 Navigator.of(context, rootNavigator: true).pop();
                               }
-                              scaffoldMessenger.removeCurrentSnackBar();
-                              scaffoldMessenger.showSnackBar(
+                              ScaffoldMessenger.of(context).removeCurrentSnackBar();
+                              ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(result['message'] ?? 'Survey submitted successfully'),
                                 ),
@@ -1293,7 +1295,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                               if (!mounted) {
                                 return;
                               }
-                              scaffoldMessenger.showSnackBar(
+                              ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text(e.toString().replaceFirst('Exception: ', '')),
                                 ),
