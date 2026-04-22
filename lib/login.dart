@@ -56,6 +56,8 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   int _todoCount = 0;
   Timer? _todoTimer;
   static const List<String> exemptedIds = ['1238', '0939', '1288', '1239', '1200', '0280', '0001'];
+  static const Set<String> _transpoSurveyEligibleIds = {'0788', '0969', '0976', '0998', '1077', '1209', '1294', '1298'};
+  final Set<String> _transpoSurveyPromptedIds = <String>{};
   @override
   void initState() {
     super.initState();
@@ -127,6 +129,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                 _isExclusiveUser = true;
                 _todoCount = countData['count'] ?? 0;
               });
+              await _maybeShowTranspoSurvey(idNumber);
               return;
             }
           } else if (wasExclusive) {
@@ -303,6 +306,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         setState(() {
           _todoCount = countData['count'] ?? 0;
         });
+        await _maybeShowTranspoSurvey(lastIdNumber);
       }
     } catch (e) {
       print('Error loading last ID number: $e');
@@ -1030,6 +1034,218 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     );
   }
 
+  Future<void> _maybeShowTranspoSurvey(String? idNumber) async {
+    if (idNumber == null || !_transpoSurveyEligibleIds.contains(idNumber)) {
+      return;
+    }
+    if (_transpoSurveyPromptedIds.contains(idNumber)) {
+      return;
+    }
+    _transpoSurveyPromptedIds.add(idNumber);
+    if (!mounted) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _showTranspoSupportSurveyDialog(idNumber);
+    });
+  }
+
+  Future<void> _showTranspoSupportSurveyDialog(String idNumber) async {
+    final TextEditingController addressController = TextEditingController();
+    int? selectedMode;
+    bool isSubmitting = false;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, dialogSetState) {
+            Widget buildModeCard(int modeValue, String label, List<IconData> icons) {
+              final bool isSelected = selectedMode == modeValue;
+              return Expanded(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: isSubmitting
+                      ? null
+                      : () {
+                    dialogSetState(() {
+                      selectedMode = modeValue;
+                    });
+                  },
+                  child: Card(
+                    margin: EdgeInsets.zero,
+                    color: isSelected ? Colors.blue.shade50 : Colors.white,
+                    elevation: isSelected ? 4 : 1,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: isSelected ? Colors.blue : Colors.grey.shade300,
+                        width: isSelected ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: icons
+                                .map(
+                                  (icon) => Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                                    child: Icon(icon, size: 22, color: Colors.blueGrey.shade700),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            label,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+
+            return AlertDialog(
+              titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 8),
+              contentPadding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
+              title: const Text(
+                'Temporary Fuel And Transportation Support Program',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              content: SizedBox(
+                width: 560,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Submission Deadline: April 25, 2026 | Please provide your details below',
+                        style: TextStyle(fontSize: 13, color: Colors.black87),
+                      ),
+                      const SizedBox(height: 18),
+                      const Text(
+                        '1. Present Address',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: addressController,
+                        enabled: !isSubmitting,
+                        maxLines: 2,
+                        decoration: InputDecoration(
+                          hintText: 'Enter present address',
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        '2. Primary Mode of Transportation',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          buildModeCard(0, 'Walking/Bicycle', [Icons.directions_walk, Icons.pedal_bike]),
+                          const SizedBox(width: 8),
+                          buildModeCard(1, 'Public Transpo/Motorcycle', [Icons.directions_bus, Icons.two_wheeler]),
+                          const SizedBox(width: 8),
+                          buildModeCard(2, 'Private Vehicle', [Icons.directions_car]),
+                        ],
+                      ),
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: isSubmitting
+                              ? null
+                              : () async {
+                            final scaffoldMessenger = ScaffoldMessenger.of(this.context);
+                            final presentAddress = addressController.text.trim();
+                            if (presentAddress.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Please enter your present address')),
+                              );
+                              return;
+                            }
+                            if (selectedMode == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Please select your transportation mode')),
+                              );
+                              return;
+                            }
+
+                            dialogSetState(() {
+                              isSubmitting = true;
+                            });
+
+                            try {
+                              final result = await _apiService.insertTranspoSupportDetails(
+                                idNumber: idNumber,
+                                presentAddress: presentAddress,
+                                modeOfTransportation: selectedMode!,
+                              );
+                              if (!mounted) {
+                                return;
+                              }
+                              Navigator.of(dialogContext).pop();
+                              scaffoldMessenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(result['message'] ?? 'Survey submitted successfully'),
+                                ),
+                              );
+                            } catch (e) {
+                              if (!mounted) {
+                                return;
+                              }
+                              scaffoldMessenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(e.toString().replaceFirst('Exception: ', '')),
+                                ),
+                              );
+                              if (dialogContext.mounted) {
+                                dialogSetState(() {
+                                  isSubmitting = false;
+                                });
+                              }
+                            }
+                          },
+                          child: isSubmitting
+                              ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                              : const Text('Submit'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    addressController.dispose();
+  }
+
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
@@ -1190,6 +1406,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(successMessage)),
         );
+        await _maybeShowTranspoSurvey(_currentIdNumber);
       } catch (e) {
         ScaffoldMessenger.of(context).removeCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
