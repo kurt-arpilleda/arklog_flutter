@@ -58,6 +58,21 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   static const List<String> exemptedIds = ['1238', '0939', '1288', '1239', '1200', '0280', '0001'];
   static const Set<String> _transpoSurveyEligibleIds = {'0788', '0969', '0976', '0998', '1077', '1209', '1294', '1298'};
   final Set<String> _transpoSurveyPromptedIds = <String>{};
+  final Set<String> _transpoSurveySubmittedIds = <String>{};
+  bool _isTranspoDialogVisible = false;
+
+  String _transpoSurveySubmittedKey(String idNumber) => 'transpoSurveySubmitted_$idNumber';
+
+  Future<bool> _isTranspoSurveySubmittedLocally(String idNumber) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_transpoSurveySubmittedKey(idNumber)) ?? false;
+  }
+
+  Future<void> _markTranspoSurveySubmitted(String idNumber) async {
+    _transpoSurveySubmittedIds.add(idNumber);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_transpoSurveySubmittedKey(idNumber), true);
+  }
   @override
   void initState() {
     super.initState();
@@ -1038,9 +1053,29 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     if (idNumber == null || !_transpoSurveyEligibleIds.contains(idNumber)) {
       return;
     }
-    if (_transpoSurveyPromptedIds.contains(idNumber)) {
+    if (_isTranspoDialogVisible || _transpoSurveyPromptedIds.contains(idNumber) || _transpoSurveySubmittedIds.contains(idNumber)) {
       return;
     }
+
+    final localSubmitted = await _isTranspoSurveySubmittedLocally(idNumber);
+    if (localSubmitted) {
+      _transpoSurveySubmittedIds.add(idNumber);
+      _transpoSurveyPromptedIds.add(idNumber);
+      return;
+    }
+
+    try {
+      final alreadySubmitted = await _apiService.hasSubmittedTranspoSupportSurvey(idNumber);
+      if (alreadySubmitted) {
+        await _markTranspoSurveySubmitted(idNumber);
+        _transpoSurveyPromptedIds.add(idNumber);
+        return;
+      }
+    } catch (e) {
+      debugPrint('Failed to check transpo survey status: $e');
+      return;
+    }
+
     _transpoSurveyPromptedIds.add(idNumber);
     if (!mounted) {
       return;
@@ -1054,16 +1089,23 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _showTranspoSupportSurveyDialog(String idNumber) async {
+    if (_isTranspoDialogVisible) {
+      return;
+    }
+
+    _isTranspoDialogVisible = true;
     final TextEditingController addressController = TextEditingController();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     int? selectedMode;
     bool isSubmitting = false;
 
-    await showDialog<void>(
+    try {
+      await showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
         return StatefulBuilder(
-          builder: (context, dialogSetState) {
+          builder: (dialogInnerContext, dialogSetState) {
             Widget buildModeCard(int modeValue, String label, List<IconData> icons, double cardWidth) {
               final bool isSelected = selectedMode == modeValue;
               return SizedBox(
@@ -1204,21 +1246,23 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                           onPressed: isSubmitting
                               ? null
                               : () async {
-                            final scaffoldMessenger = ScaffoldMessenger.of(this.context);
                             final presentAddress = addressController.text.trim();
                             if (presentAddress.isEmpty) {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              scaffoldMessenger.showSnackBar(
                                 const SnackBar(content: Text('Please enter your present address')),
                               );
                               return;
                             }
                             if (selectedMode == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
+                              scaffoldMessenger.showSnackBar(
                                 const SnackBar(content: Text('Please select your transportation mode')),
                               );
                               return;
                             }
 
+                            if (!dialogContext.mounted) {
+                              return;
+                            }
                             dialogSetState(() {
                               isSubmitting = true;
                             });
@@ -1232,7 +1276,14 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                               if (!mounted) {
                                 return;
                               }
-                              Navigator.of(dialogContext).pop();
+                              await _markTranspoSurveySubmitted(idNumber);
+                              if (!mounted) {
+                                return;
+                              }
+                              if (Navigator.of(context, rootNavigator: true).canPop()) {
+                                Navigator.of(context, rootNavigator: true).pop();
+                              }
+                              scaffoldMessenger.removeCurrentSnackBar();
                               scaffoldMessenger.showSnackBar(
                                 SnackBar(
                                   content: Text(result['message'] ?? 'Survey submitted successfully'),
@@ -1272,8 +1323,10 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         );
       },
     );
-
-    addressController.dispose();
+    } finally {
+      _isTranspoDialogVisible = false;
+      addressController.dispose();
+    }
   }
 
   Future<void> _login() async {

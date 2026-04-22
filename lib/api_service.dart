@@ -63,6 +63,36 @@ class ApiService {
     }
   }
 
+  Future<T> _makeSingleServerRequest<T>(Future<T> Function(String apiUrl) requestFn) async {
+    final currentApiUrls = await _getCurrentApiUrls();
+    Exception? lastError;
+
+    if (_lastWorkingServerIndex != null && _lastWorkingServerIndex! < currentApiUrls.length) {
+      final preferredApiUrl = currentApiUrls[_lastWorkingServerIndex!];
+      try {
+        return await requestFn(preferredApiUrl).timeout(requestTimeout);
+      } catch (e) {
+        lastError = Exception(e.toString());
+      }
+    }
+
+    for (int i = 0; i < currentApiUrls.length; i++) {
+      if (_lastWorkingServerIndex != null && i == _lastWorkingServerIndex) {
+        continue;
+      }
+
+      try {
+        final result = await requestFn(currentApiUrls[i]).timeout(requestTimeout);
+        _lastWorkingServerIndex = i;
+        return result;
+      } catch (e) {
+        lastError = Exception(e.toString());
+      }
+    }
+
+    throw lastError ?? Exception("All API URLs are unreachable");
+  }
+
   Future<List<String>> _getCurrentApiUrls() async {
     final prefs = await SharedPreferences.getInstance();
     final phorjp = prefs.getString('phorjp') ?? 'ph';
@@ -1090,7 +1120,7 @@ class ApiService {
   }) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        final result = await _makeParallelRequest((apiUrl) async {
+        final result = await _makeSingleServerRequest((apiUrl) async {
           final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_insertTranspoDetails.php");
           final response = await httpClient.post(
             uri,
@@ -1105,6 +1135,13 @@ class ApiService {
             final data = jsonDecode(response.body);
             if (data["success"] == true) {
               return _ApiResult<Map<String, dynamic>>(data, apiUrl);
+            }
+            if (data["alreadySubmitted"] == true || data["hasSubmitted"] == true) {
+              return _ApiResult<Map<String, dynamic>>({
+                "success": true,
+                "alreadySubmitted": true,
+                "message": data["message"] ?? "Survey already submitted",
+              }, apiUrl);
             }
             throw Exception(data["message"] ?? data["error"] ?? "Failed to submit transportation survey");
           }
@@ -1121,6 +1158,25 @@ class ApiService {
       }
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
+  }
+
+  Future<bool> hasSubmittedTranspoSupportSurvey(String idNumber) async {
+    final result = await _makeSingleServerRequest((apiUrl) async {
+      final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_insertTranspoDetails.php?checkOnly=1&idNumber=$idNumber");
+      final response = await httpClient.get(uri);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data["success"] != true) {
+          throw Exception(data["message"] ?? data["error"] ?? "Failed to check transportation survey status");
+        }
+        final bool hasSubmitted = data["hasSubmitted"] == true || data["submitted"] == true || data["alreadySubmitted"] == true;
+        return _ApiResult<bool>(hasSubmitted, apiUrl);
+      }
+      throw Exception("HTTP ${response.statusCode}");
+    });
+
+    return result.value;
   }
 
   Future<Map<String, dynamic>?> fetchReminder() async {
