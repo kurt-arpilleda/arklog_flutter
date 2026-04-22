@@ -1064,18 +1064,19 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       builder: (dialogContext) {
         return StatefulBuilder(
           builder: (context, dialogSetState) {
-            Widget buildModeCard(int modeValue, String label, List<IconData> icons) {
+            Widget buildModeCard(int modeValue, String label, List<IconData> icons, double cardWidth) {
               final bool isSelected = selectedMode == modeValue;
-              return Expanded(
+              return SizedBox(
+                width: cardWidth,
                 child: InkWell(
                   borderRadius: BorderRadius.circular(12),
                   onTap: isSubmitting
                       ? null
                       : () {
-                    dialogSetState(() {
-                      selectedMode = modeValue;
-                    });
-                  },
+                          dialogSetState(() {
+                            selectedMode = modeValue;
+                          });
+                        },
                   child: Card(
                     margin: EdgeInsets.zero,
                     color: isSelected ? Colors.blue.shade50 : Colors.white,
@@ -1125,7 +1126,9 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               content: SizedBox(
-                width: 560,
+                width: MediaQuery.of(dialogContext).size.width * 0.95 > 560
+                    ? 560
+                    : MediaQuery.of(dialogContext).size.width * 0.95,
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -1157,15 +1160,42 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                         style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 10),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          buildModeCard(0, 'Walking/Bicycle', [Icons.directions_walk, Icons.pedal_bike]),
-                          const SizedBox(width: 8),
-                          buildModeCard(1, 'Public Transpo/Motorcycle', [Icons.directions_bus, Icons.two_wheeler]),
-                          const SizedBox(width: 8),
-                          buildModeCard(2, 'Private Vehicle', [Icons.directions_car]),
-                        ],
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          const spacing = 8.0;
+                          final width = constraints.maxWidth;
+                          final columns = width >= 420
+                              ? 3
+                              : width >= 260
+                                  ? 2
+                                  : 1;
+                          final cardWidth = (width - (spacing * (columns - 1))) / columns;
+
+                          return Wrap(
+                            spacing: spacing,
+                            runSpacing: spacing,
+                            children: [
+                              buildModeCard(
+                                0,
+                                'Walking/Bicycle',
+                                [Icons.directions_walk, Icons.pedal_bike],
+                                cardWidth,
+                              ),
+                              buildModeCard(
+                                1,
+                                'Public Transpo/Motorcycle',
+                                [Icons.directions_bus, Icons.two_wheeler],
+                                cardWidth,
+                              ),
+                              buildModeCard(
+                                2,
+                                'Private Vehicle',
+                                [Icons.directions_car],
+                                cardWidth,
+                              ),
+                            ],
+                          );
+                        },
                       ),
                       const SizedBox(height: 18),
                       SizedBox(
