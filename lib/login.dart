@@ -1566,8 +1566,8 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                           const SizedBox(height: 10),
                           Text(
                             _currentLanguage == 'ja'
-                                ? '⚠️ ログアウトにはAPI-Guard-HigherBand Wi-Fiへの接続が必要です。ログアウト後は守衛に電話を充電してください。'
-                                : '⚠️ Connect to API-Guard-HigherBand Wi-Fi to log out. Please charge the phone to the guardhouse after logging out.',
+                                ? '⚠️ ログアウトする前に、ArktechのWi-Fiに接続してください。その後、エンジニアリングオフィスの充電ステーションに携帯電話を置いてください。'
+                                : '⚠️ Please connect to the Arktech Wi-Fi before logging out. Then place the phone on the charging station at the Engineering Office.',
                             style: TextStyle(
                               fontSize: 13,
                               color: Colors.deepOrange,
