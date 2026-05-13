@@ -48,6 +48,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   String _currentDateTime = '';
   String? _latestTimeIn;
   String? _qrErrorMessage;
+  String? _serverQrCode;
   Timer? _timer;
   bool _isExclusiveUser = false;
   bool _isFlashOn = false;
@@ -55,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   String _phoneName = 'ARK LOG PH';
   int _todoCount = 0;
   Timer? _todoTimer;
-  static const List<String> exemptedIds = ['1238', '0939', '1288', '1239', '1200', '0280', '0001'];
+  static const List<String> exemptedIds = ['12', '0939', '1288', '1239', '1200', '0280', '0001'];
 
   @override
   void initState() {
@@ -1469,15 +1470,38 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 
   Future<bool?> _showQrScanner() async {
     _qrErrorMessage = null;
+    _serverQrCode = null;
     _isFlashOn = false;
     _isQrScannerOpen = true;
 
-    return await showDialog<bool>(
+    Timer? qrFetchTimer;
+
+    Future<void> fetchServerQrCode() async {
+      try {
+        final code = await _apiService.fetchQRCode();
+        _serverQrCode = code;
+      } catch (e) {
+        debugPrint("Error fetching QR code: $e");
+      }
+    }
+
+    await fetchServerQrCode();
+
+    final result = await showDialog<bool>(
       context: context,
-      barrierDismissible: false, // This prevents closing when tapping outside
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return StatefulBuilder(
-          builder: (context, setState) {
+          builder: (context, setDialogState) {
+            qrFetchTimer ??= Timer.periodic(const Duration(seconds: 1), (_) async {
+              try {
+                final code = await _apiService.fetchQRCode();
+                _serverQrCode = code;
+              } catch (e) {
+                debugPrint("Error fetching QR code: $e");
+              }
+            });
+
             return Dialog(
               insetPadding: const EdgeInsets.all(8),
               shape: RoundedRectangleBorder(
@@ -1503,8 +1527,8 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                             children: [
                               Text(
                                 _currentLanguage == 'ja'
-                                    ? 'ログアウト時は守衛所でQRコードをスキャンしてください'
-                                    : 'Scan the QR code at the Guard House to log out',
+                                    ? 'エンジニアリングオフィスでQRコードをスキャンしてログアウトしてください'
+                                    : 'Scan the QR code at the Engineering Office to Log out',
                                 style: TextStyle(
                                   fontSize: _currentLanguage == 'ja' ? 16 : 18,
                                   fontWeight: FontWeight.bold,
@@ -1527,7 +1551,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                                 child: QRView(
                                   key: qrKey,
                                   onQRViewCreated: (controller) =>
-                                      _onQRViewCreated(controller, setState),
+                                      _onQRViewCreated(controller, setDialogState),
                                   overlay: QrScannerOverlayShape(
                                     borderColor: Colors.red,
                                     borderRadius: 10,
@@ -1577,7 +1601,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                                 onPressed: () async {
                                   if (qrController != null) {
                                     await qrController?.toggleFlash();
-                                    setState(() {
+                                    setDialogState(() {
                                       _isFlashOn = !_isFlashOn;
                                     });
                                   }
@@ -1612,11 +1636,12 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           },
         );
       },
-    ).then((value) {
-      _isFlashOn = false;
-      _isQrScannerOpen = false;
-      return value;
-    });
+    );
+
+    qrFetchTimer?.cancel();
+    _isFlashOn = false;
+    _isQrScannerOpen = false;
+    return result;
   }
 
   String xorDecrypt(String base64Data, String key) {
@@ -1628,7 +1653,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     return utf8.decode(decryptedBytes);
   }
 
-  void _onQRViewCreated(QRViewController controller, void Function(void Function()) setState) {
+  void _onQRViewCreated(QRViewController controller, void Function(void Function()) setDialogState) {
     qrController = controller;
     bool isVerified = false;
 
@@ -1638,26 +1663,27 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       final qrData = scanData.code;
       if (qrData == null) return;
 
-      try {
-        final decrypted = xorDecrypt(qrData, 'arklog123'); // same key as used in PHP
+      final expectedCode = _serverQrCode;
 
-        if (decrypted == '4rkT3chBirthD@y=2003-06-09 06:31:20') {
-          isVerified = true;
-          qrController?.pauseCamera();
-          Navigator.of(context).pop(true);
-          qrController?.dispose();
-        } else {
-          setState(() {
-            _qrErrorMessage = _currentLanguage == 'ja'
-                ? '無効なQRコードデータです'
-                : 'Invalid QR code data';
-          });
-        }
-      } catch (e) {
-        setState(() {
+      if (expectedCode == null || expectedCode.isEmpty) {
+        setDialogState(() {
           _qrErrorMessage = _currentLanguage == 'ja'
-              ? 'QRコードのデコードに失敗しました'
-              : 'Failed to decode QR code';
+              ? 'サーバーからQRコードを取得中です。もう一度お試しください。'
+              : 'Please Scan the QR from Engineering-IT Office Laptop in the Log-out Portal';
+        });
+        return;
+      }
+
+      if (qrData == expectedCode) {
+        isVerified = true;
+        qrController?.pauseCamera();
+        Navigator.of(context).pop(true);
+        qrController?.dispose();
+      } else {
+        setDialogState(() {
+          _qrErrorMessage = _currentLanguage == 'ja'
+              ? 'エンジニアリングITオフィスのログアウトポータルのQRコードをスキャンしてください'
+              : 'Please Scan the QR from Engineering-IT Office Laptop in the Log-out Portal';
         });
       }
     });
