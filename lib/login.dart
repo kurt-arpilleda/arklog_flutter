@@ -2796,5 +2796,3 @@ class _ReminderDialogState extends State<_ReminderDialog>
     );
   }
 }
-
-
