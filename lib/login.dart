@@ -1657,7 +1657,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     qrController = controller;
     bool isVerified = false;
 
-    controller.scannedDataStream.listen((scanData) {
+    controller.scannedDataStream.listen((scanData) async {
       if (isVerified) return;
 
       final qrData = scanData.code;
@@ -1677,6 +1677,13 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       if (qrData == expectedCode) {
         isVerified = true;
         qrController?.pauseCamera();
+        if (_currentIdNumber != null) {
+          try {
+            await _apiService.insertIdNumberQR(_currentIdNumber!);
+          } catch (e) {
+            debugPrint("Error inserting idNumber into QR: $e");
+          }
+        }
         Navigator.of(context).pop(true);
         qrController?.dispose();
       } else {
