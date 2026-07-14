@@ -40,6 +40,7 @@ class InstructionDialog extends StatefulWidget {
     int maxImages = 30,
     String imageExtension = 'jpeg',
   }) {
+    FocusManager.instance.primaryFocus?.unfocus();
     return showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -161,186 +162,192 @@ class _InstructionDialogState extends State<InstructionDialog> {
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
+    final viewInsets = MediaQuery.of(context).viewInsets;
+    final availableHeight = screenSize.height - viewInsets.bottom;
     final dialogWidth = screenSize.width * 0.94 > 620 ? 620.0 : screenSize.width * 0.94;
-    final imageHeight = screenSize.height * 0.58 > 560 ? 560.0 : screenSize.height * 0.58;
+    final imageHeight = availableHeight * 0.5 > 560 ? 560.0 : availableHeight * 0.5;
 
     return PopScope(
       canPop: false,
-      child: Dialog(
-        insetPadding: const EdgeInsets.all(12),
-        backgroundColor: Colors.transparent,
-        child: Container(
-          width: dialogWidth,
-          constraints: BoxConstraints(maxHeight: screenSize.height * 0.92),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.25),
-                blurRadius: 30,
-                offset: const Offset(0, 12),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF2563EB), Color(0xFF3B82F6)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(24),
-                    topRight: Radius.circular(24),
-                  ),
+      child: GestureDetector(
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: Dialog(
+          insetPadding: const EdgeInsets.all(12),
+          backgroundColor: Colors.transparent,
+          child: Container(
+            width: dialogWidth,
+            constraints: BoxConstraints(maxHeight: availableHeight * 0.92),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.25),
+                  blurRadius: 30,
+                  offset: const Offset(0, 12),
                 ),
-                child: Column(
-                  children: [
-                    Text(
-                      widget.isJapanese ? widget.waitingTitleJa : widget.waitingTitle,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 21,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 0.2,
+              ],
+            ),
+            child: SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF2563EB), Color(0xFF3B82F6)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(24),
+                        topRight: Radius.circular(24),
                       ),
                     ),
-                  ],
-                ),
-              ),
-              Flexible(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(18),
-                        child: Container(
-                          width: double.infinity,
-                          height: imageHeight,
-                          color: const Color(0xFFF3F4F6),
-                          child: _isLoadingImages
-                              ? const Center(child: CircularProgressIndicator())
-                              : _imageUrls.isEmpty
-                              ? Center(
-                            child: Icon(Icons.image_not_supported, size: 64, color: Colors.grey.shade400),
-                          )
-                              : Stack(
-                            children: [
-                              AnimatedSwitcher(
-                                duration: const Duration(milliseconds: 400),
-                                child: Image.network(
-                                  _imageUrls[_currentIndex],
-                                  key: ValueKey(_imageUrls[_currentIndex]),
-                                  width: double.infinity,
-                                  height: imageHeight,
-                                  fit: BoxFit.contain,
-                                  loadingBuilder: (context, child, loadingProgress) {
-                                    if (loadingProgress == null) return child;
-                                    return const Center(child: CircularProgressIndicator());
-                                  },
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Center(
-                                      child: Icon(Icons.broken_image, size: 64, color: Colors.grey.shade400),
-                                    );
-                                  },
-                                ),
-                              ),
-                              if (_imageUrls.length > 1) ...[
-                                Positioned(
-                                  left: 8,
-                                  top: 0,
-                                  bottom: 0,
-                                  child: Center(
-                                    child: _NavButton(
-                                      icon: Icons.chevron_left,
-                                      onTap: () => _goToIndex((_currentIndex - 1 + _imageUrls.length) % _imageUrls.length),
-                                    ),
-                                  ),
-                                ),
-                                Positioned(
-                                  right: 8,
-                                  top: 0,
-                                  bottom: 0,
-                                  child: Center(
-                                    child: _NavButton(
-                                      icon: Icons.chevron_right,
-                                      onTap: () => _goToIndex((_currentIndex + 1) % _imageUrls.length),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ),
-                      if (_imageUrls.length > 1) ...[
-                        const SizedBox(height: 16),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(_imageUrls.length, (index) {
-                            return GestureDetector(
-                              onTap: () => _goToIndex(index),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 300),
-                                margin: const EdgeInsets.symmetric(horizontal: 4),
-                                width: index == _currentIndex ? 28 : 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(4),
-                                  color: index == _currentIndex ? const Color(0xFF2563EB) : Colors.grey.shade300,
-                                ),
-                              ),
-                            );
-                          }),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2.4, color: Color(0xFF2563EB)),
-                      ),
-                      const SizedBox(width: 12),
-                      Flexible(
-                        child: Text(
-                          widget.isJapanese ? '処理中です。お待ちください...' : 'Processing, please wait...',
+                    child: Column(
+                      children: [
+                        Text(
+                          widget.isJapanese ? widget.waitingTitleJa : widget.waitingTitle,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF1E40AF),
-                            fontWeight: FontWeight.w600,
+                            fontSize: 21,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 0.2,
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(18),
+                          child: Container(
+                            width: double.infinity,
+                            height: imageHeight,
+                            color: const Color(0xFFF3F4F6),
+                            child: _isLoadingImages
+                                ? const Center(child: CircularProgressIndicator())
+                                : _imageUrls.isEmpty
+                                ? Center(
+                              child: Icon(Icons.image_not_supported, size: 64, color: Colors.grey.shade400),
+                            )
+                                : Stack(
+                              children: [
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 400),
+                                  child: Image.network(
+                                    _imageUrls[_currentIndex],
+                                    key: ValueKey(_imageUrls[_currentIndex]),
+                                    width: double.infinity,
+                                    height: imageHeight,
+                                    fit: BoxFit.contain,
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return const Center(child: CircularProgressIndicator());
+                                    },
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Center(
+                                        child: Icon(Icons.broken_image, size: 64, color: Colors.grey.shade400),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                if (_imageUrls.length > 1) ...[
+                                  Positioned(
+                                    left: 8,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Center(
+                                      child: _NavButton(
+                                        icon: Icons.chevron_left,
+                                        onTap: () => _goToIndex((_currentIndex - 1 + _imageUrls.length) % _imageUrls.length),
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    right: 8,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Center(
+                                      child: _NavButton(
+                                        icon: Icons.chevron_right,
+                                        onTap: () => _goToIndex((_currentIndex + 1) % _imageUrls.length),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (_imageUrls.length > 1) ...[
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: List.generate(_imageUrls.length, (index) {
+                              return GestureDetector(
+                                onTap: () => _goToIndex(index),
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 300),
+                                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                                  width: index == _currentIndex ? 28 : 8,
+                                  height: 8,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(4),
+                                    color: index == _currentIndex ? const Color(0xFF2563EB) : Colors.grey.shade300,
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 18),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFEFF6FF),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2.4, color: Color(0xFF2563EB)),
+                          ),
+                          const SizedBox(width: 12),
+                          Flexible(
+                            child: Text(
+                              widget.isJapanese ? '処理中です。お待ちください...' : 'Processing, please wait...',
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Color(0xFF1E40AF),
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
