@@ -1074,6 +1074,14 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           deviceId: _deviceId!,
         );
 
+        final bool? qrVerified = await _showQrScanner(isLogin: true, idNumberForQr: actualIdNumber);
+        if (qrVerified != true) {
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+
         final wtrResponse = await _apiService.insertWTR(
           actualIdNumber,
           deviceId: _deviceId!,
@@ -1226,7 +1234,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     String phoneConditionOut = phoneConditionResult['phoneConditionOut'] ?? 'Good: Yes';
 
     if (!isExempted) {
-      final bool? qrVerified = await _showQrScanner();
+      final bool? qrVerified = await _showQrScanner(isLogin: false, idNumberForQr: _currentIdNumber!);
       if (qrVerified != true) return;
     }
 
@@ -1468,7 +1476,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     );
   }
 
-  Future<bool?> _showQrScanner() async {
+  Future<bool?> _showQrScanner({required bool isLogin, required String idNumberForQr}) async {
     _qrErrorMessage = null;
     _serverQrCode = null;
     _isFlashOn = false;
@@ -1526,9 +1534,13 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                           Column(
                             children: [
                               Text(
-                                _currentLanguage == 'ja'
+                                isLogin
+                                    ? (_currentLanguage == 'ja'
+                                    ? 'エンジニアリングオフィスでQRコードをスキャンしてログインしてください'
+                                    : 'Scan the QR code at the Engineering Office to Log in')
+                                    : (_currentLanguage == 'ja'
                                     ? 'エンジニアリングオフィスでQRコードをスキャンしてログアウトしてください'
-                                    : 'Scan the QR code at the Engineering Office to Log out',
+                                    : 'Scan the QR code at the Engineering Office to Log out'),
                                 style: TextStyle(
                                   fontSize: _currentLanguage == 'ja' ? 16 : 18,
                                   fontWeight: FontWeight.bold,
@@ -1551,7 +1563,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                                 child: QRView(
                                   key: qrKey,
                                   onQRViewCreated: (controller) =>
-                                      _onQRViewCreated(controller, setDialogState),
+                                      _onQRViewCreated(controller, setDialogState, idNumberForQr),
                                   overlay: QrScannerOverlayShape(
                                     borderColor: Colors.red,
                                     borderRadius: 10,
@@ -1565,9 +1577,13 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            _currentLanguage == 'ja'
+                            isLogin
+                                ? (_currentLanguage == 'ja'
+                                ? '⚠️ ログインする前に、ArktechのWi-Fiに接続してください。その後、エンジニアリングオフィスでQRコードをスキャンしてください。'
+                                : '⚠️ Please connect to the Arktech Wi-Fi before logging in. Then scan the QR code at the Engineering Office.')
+                                : (_currentLanguage == 'ja'
                                 ? '⚠️ ログアウトする前に、ArktechのWi-Fiに接続してください。その後、エンジニアリングオフィスの充電ステーションに携帯電話を置いてください。'
-                                : '⚠️ Please connect to the Arktech Wi-Fi before logging out. Then place the phone on the charging station at the Engineering Office.',
+                                : '⚠️ Please connect to the Arktech Wi-Fi before logging out. Then place the phone on the charging station at the Engineering Office.'),
                             style: TextStyle(
                               fontSize: 13,
                               color: Colors.deepOrange,
@@ -1653,7 +1669,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     return utf8.decode(decryptedBytes);
   }
 
-  void _onQRViewCreated(QRViewController controller, void Function(void Function()) setDialogState) {
+  void _onQRViewCreated(QRViewController controller, void Function(void Function()) setDialogState, String idNumberForQr) {
     qrController = controller;
     bool isVerified = false;
 
@@ -1677,12 +1693,10 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       if (qrData == expectedCode) {
         isVerified = true;
         qrController?.pauseCamera();
-        if (_currentIdNumber != null) {
-          try {
-            await _apiService.insertIdNumberQR(_currentIdNumber!);
-          } catch (e) {
-            debugPrint("Error inserting idNumber into QR: $e");
-          }
+        try {
+          await _apiService.insertIdNumberQR(idNumberForQr);
+        } catch (e) {
+          debugPrint("Error inserting idNumber into QR: $e");
         }
         Navigator.of(context).pop(true);
         qrController?.dispose();
