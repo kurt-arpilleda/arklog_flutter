@@ -16,6 +16,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import 'birthday_celebration.dart';
 import 'todo_dialog.dart';
+import 'instructionDialog.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -1088,6 +1089,26 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           phoneCondition: phoneCondition,
         );
 
+        final currentApiUrl = await _apiService.getCurrentApiUrl();
+        final loginImageFolderUrl =
+            "${currentApiUrl}V4/Others/Kurt/ArkLogAPI/Instruction%20Login/";
+
+        final bool? timeInConfirmed = await InstructionDialog.show(
+          context: context,
+          imageFolderUrl: loginImageFolderUrl,
+          isJapanese: _currentLanguage == 'ja',
+          waitingTitle: 'Confirming your login',
+          waitingTitleJa: 'ログインを確認しています',
+          onPoll: () => _apiService.checkTimeInStatus(actualIdNumber),
+        );
+
+        if (timeInConfirmed != true) {
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+
         final profileData = await _apiService.fetchProfile(actualIdNumber);
 
         if (profileData["success"] == true) {
@@ -1311,6 +1332,24 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           _currentIdNumber!,
           phoneConditionOut: phoneConditionOut,
         );
+
+        final currentApiUrl = await _apiService.getCurrentApiUrl();
+        final logoutImageFolderUrl =
+            "${currentApiUrl}V4/Others/Kurt/ArkLogAPI/Instruction%20Logout/";
+
+        final bool? timeOutConfirmed = await InstructionDialog.show(
+          context: context,
+          imageFolderUrl: logoutImageFolderUrl,
+          isJapanese: _currentLanguage == 'ja',
+          waitingTitle: 'Confirming your logout',
+          waitingTitleJa: 'ログアウトを確認しています',
+          onPoll: () => _apiService.checkTimeOutStatus(_currentIdNumber!),
+        );
+
+        if (timeOutConfirmed != true) {
+          setState(() => _isLoading = false);
+          return;
+        }
 
         if (logoutResult["isUndertime"] == true) {
           ScaffoldMessenger.of(context).showSnackBar(

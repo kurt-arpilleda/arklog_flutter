@@ -101,6 +101,14 @@ class ApiService {
         : ["http://192.168.254.163/", "http://126.209.7.246/"];
   }
 
+  Future<String> getCurrentApiUrl() async {
+    final currentApiUrls = await _getCurrentApiUrls();
+    if (_lastWorkingServerIndex != null && _lastWorkingServerIndex! < currentApiUrls.length) {
+      return currentApiUrls[_lastWorkingServerIndex!];
+    }
+    return currentApiUrls[0];
+  }
+
   Future<Map<String, dynamic>> fetchProfile(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
@@ -599,6 +607,48 @@ class ApiService {
       }
     }
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
+  }
+
+  Future<bool> checkTimeInStatus(String idNumber) async {
+    final result = await _makeParallelRequest((apiUrl) async {
+      final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkTimeInStatus.php");
+      final response = await httpClient.post(
+        uri,
+        body: {'idNumber': idNumber},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data["success"] == true) {
+          return _ApiResult(data["isLegit"] == true, apiUrl);
+        }
+        throw Exception(data["message"] ?? "Failed to check time in status");
+      }
+      throw Exception("HTTP ${response.statusCode}");
+    });
+
+    return result.value;
+  }
+
+  Future<bool> checkTimeOutStatus(String idNumber) async {
+    final result = await _makeParallelRequest((apiUrl) async {
+      final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkTimeOutStatus.php");
+      final response = await httpClient.post(
+        uri,
+        body: {'idNumber': idNumber},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data["success"] == true) {
+          return _ApiResult(data["isLegit"] == true, apiUrl);
+        }
+        throw Exception(data["message"] ?? "Failed to check time out status");
+      }
+      throw Exception("HTTP ${response.statusCode}");
+    });
+
+    return result.value;
   }
 
   Future<Map<String, dynamic>> checkExclusiveLogin(String deviceId) async {
