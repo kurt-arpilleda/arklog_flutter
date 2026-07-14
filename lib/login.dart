@@ -1078,13 +1078,8 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           return;
         }
 
-        final actualIdNumber = await _apiService.insertIdNumber(
-          _idController.text,
-          deviceId: _deviceId!,
-        );
-
         final wtrResponse = await _apiService.insertWTR(
-          actualIdNumber,
+          _idController.text,
           deviceId: _deviceId!,
           phoneCondition: phoneCondition,
         );
@@ -1099,7 +1094,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           isJapanese: _currentLanguage == 'ja',
           waitingTitle: 'Confirming your login',
           waitingTitleJa: 'ログインを確認しています',
-          onPoll: () => _apiService.checkTimeInStatus(actualIdNumber),
+          onPoll: () => _apiService.checkTimeInStatus(_idController.text),
         );
 
         if (timeInConfirmed != true) {
@@ -1108,6 +1103,13 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           });
           return;
         }
+
+        // Only now — after time-in is confirmed and the InstructionDialog has
+        // closed — do we log the ID/device pair into system_arkLog.
+        final actualIdNumber = await _apiService.insertIdNumber(
+          _idController.text,
+          deviceId: _deviceId!,
+        );
 
         final profileData = await _apiService.fetchProfile(actualIdNumber);
 
