@@ -1070,18 +1070,18 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 
         String phoneCondition = phoneConditionResult['phoneCondition'] ?? 'Good';
 
-        final actualIdNumber = await _apiService.insertIdNumber(
-          _idController.text,
-          deviceId: _deviceId!,
-        );
-
-        final bool? qrVerified = await _showQrScanner(isLogin: true, idNumberForQr: actualIdNumber);
+        final bool? qrVerified = await _showQrScanner(isLogin: true, idNumberForQr: _idController.text);
         if (qrVerified != true) {
           setState(() {
             _isLoading = false;
           });
           return;
         }
+
+        final actualIdNumber = await _apiService.insertIdNumber(
+          _idController.text,
+          deviceId: _deviceId!,
+        );
 
         final wtrResponse = await _apiService.insertWTR(
           actualIdNumber,
