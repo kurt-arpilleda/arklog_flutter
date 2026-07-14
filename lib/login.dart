@@ -57,6 +57,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   String _phoneName = 'ARK LOG PH';
   int _todoCount = 0;
   Timer? _todoTimer;
+  bool _isCheckingPendingConfirmation = false;
   static const List<String> exemptedIds = ['12', '0939', '1288', '1239', '1200', '0280', '0001'];
 
   @override
@@ -79,6 +80,8 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       await _initializeDeviceId();
       await _loadCurrentLanguage();
       await _loadPhOrJp();
+
+      await _checkPendingConfirmation();
 
       if (!AutoUpdate.isUpdating) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -159,6 +162,76 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       });
     }
   }
+  Future<void> _checkPendingConfirmation() async {
+    if (_isLoading || _isCheckingPendingConfirmation) return;
+    _isCheckingPendingConfirmation = true;
+    try {
+      final pending = await _apiService.checkPendingConfirmation();
+      if (pending["hasPending"] != true || !mounted) {
+        return;
+      }
+
+      final String idNumber = pending["idNumber"];
+      final String actualIdNumber = pending["actualIdNumber"] ?? idNumber;
+      final String type = pending["type"];
+      final currentApiUrl = await _apiService.getCurrentApiUrl();
+
+      setState(() => _isLoading = true);
+
+      if (type == "login") {
+        final loginImageFolderUrl =
+            "${currentApiUrl}V4/Others/Kurt/ArkLogAPI/Instruction%20Login/";
+
+        final bool? timeInConfirmed = await InstructionDialog.show(
+          context: context,
+          imageFolderUrl: loginImageFolderUrl,
+          isJapanese: _currentLanguage == 'ja',
+          waitingTitle: 'Confirming your login',
+          waitingTitleJa: 'ログインを確認しています',
+          onPoll: () => _apiService.checkTimeInStatus(idNumber),
+        );
+
+        if (timeInConfirmed == true && mounted) {
+          await _completeLoginAfterConfirmation(idNumber);
+        } else {
+          setState(() => _isLoading = false);
+        }
+      } else if (type == "logout") {
+        final logoutImageFolderUrl =
+            "${currentApiUrl}V4/Others/Kurt/ArkLogAPI/Instruction%20Logout/";
+
+        final bool? timeOutConfirmed = await InstructionDialog.show(
+          context: context,
+          imageFolderUrl: logoutImageFolderUrl,
+          isJapanese: _currentLanguage == 'ja',
+          waitingTitle: 'Confirming your logout',
+          waitingTitleJa: 'ログアウトを確認しています',
+          onPoll: () => _apiService.checkTimeOutStatus(actualIdNumber),
+        );
+
+        if (timeOutConfirmed == true && mounted) {
+          bool isUndertime = false;
+          try {
+            final confirmResult = await _apiService.confirmLogoutWTR(actualIdNumber);
+            isUndertime = confirmResult["isUndertime"] == true;
+          } catch (_) {}
+          await _completeLogoutAfterConfirmation(isUndertime: isUndertime);
+        } else {
+          setState(() => _isLoading = false);
+        }
+      } else {
+        setState(() => _isLoading = false);
+      }
+    } catch (e) {
+      debugPrint("Error checking pending confirmation: $e");
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    } finally {
+      _isCheckingPendingConfirmation = false;
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -1104,137 +1177,149 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           return;
         }
 
-        // Only now — after time-in is confirmed and the InstructionDialog has
-        // closed — do we log the ID/device pair into system_arkLog.
-        final actualIdNumber = await _apiService.insertIdNumber(
-          _idController.text,
-          deviceId: _deviceId!,
-        );
-
-        final profileData = await _apiService.fetchProfile(actualIdNumber);
-
-        if (profileData["success"] == true) {
-          String profilePictureFileName = profileData["picture"];
-
-          String primaryUrl = "${ApiService.apiUrls[0]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
-          bool isPrimaryUrlValid = await _isImageAvailable(primaryUrl);
-
-          String fallbackUrl = "${ApiService.apiUrls[1]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
-          bool isFallbackUrlValid = await _isImageAvailable(fallbackUrl);
-
-          final timeInData = await _apiService.fetchTimeIns(actualIdNumber);
-          String? latestTimeIn = timeInData["latestTimeIn"] != null
-              ? _formatTimeIn(timeInData["latestTimeIn"])
-              : null;
-
-          int languageFlag = profileData["languageFlag"] ?? 1; // Default to 1 if not set
-          String language = languageFlag == 2 ? "ja" : "en";
-          await _updateLanguage(language);
-
-          setState(() {
-            _firstName = profileData["firstName"];
-            _surName = profileData["surName"];
-            _profilePictureUrl = isPrimaryUrlValid ? primaryUrl : isFallbackUrlValid ? fallbackUrl : null;
-            _currentIdNumber = actualIdNumber;
-            _latestTimeIn = latestTimeIn;
-            _isLoggedIn = true;
-            _idController.text = actualIdNumber;
-          });
-          if (profileData["birthdate"] != null) {
-            final birthdate = DateTime.parse(profileData["birthdate"]);
-            final today = DateTime.now();
-            if (birthdate.month == today.month && birthdate.day == today.day) {
-              // Close any existing birthday celebration
-              if (Navigator.of(context).canPop()) {
-                BirthdayCelebration.close(context);
-              }
-
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                showDialog(
-                  context: context,
-                  barrierColor: Colors.black.withOpacity(0.5),
-                  barrierDismissible: false,
-                  builder: (context) {
-                    return BirthdayCelebration(
-                      name: profileData["firstName"],
-                      languageFlag: profileData["languageFlag"] ?? 1,
-                      onFinish: () {
-                        Navigator.of(context).pop();
-                      },
-                      duration: const Duration(seconds: 9),
-                    );
-                  },
-                );
-              });
-            }
-          }
-        }
-
-        if (wtrResponse['isLate'] == true || wtrResponse['isRelogin'] == true) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            showDialog(
-              context: context,
-              builder: (BuildContext context) {
-                String title;
-                String message;
-
-                if (wtrResponse['isRelogin'] == true && wtrResponse['isLate'] == true) {
-                  title = _currentLanguage == 'ja' ? "再ログイン (遅刻)" : "Relogin (Late)";
-                  message = _currentLanguage == 'ja'
-                      ? "再ログインされました。シフトに遅刻しています"
-                      : "You have relogged in and you are late for your shift";
-                } else if (wtrResponse['isRelogin'] == true) {
-                  title = _currentLanguage == 'ja' ? "再ログイン" : "Relogin";
-                  message = _currentLanguage == 'ja'
-                      ? "再ログインされました"
-                      : "You have relogged in";
-                } else {
-                  title = _currentLanguage == 'ja' ? "遅刻ログイン" : "Late Login";
-                  message = wtrResponse['lateMessage'] ??
-                      (_currentLanguage == 'ja'
-                          ? "シフトに遅刻しています"
-                          : "You are late for your shift");
-                }
-
-                return AlertDialog(
-                  title: Text(title),
-                  content: Text(message),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: Text("OK"),
-                    ),
-                  ],
-                );
-              },
-            );
-          });
-        }
-
-        String successMessage = _currentLanguage == 'ja'
-            ? 'ID: $actualIdNumber でログインしました'
-            : 'Successfully logged in with ID: $actualIdNumber';
-        if (wtrResponse['updated'] == true) {
-          successMessage = _currentLanguage == 'ja'
-              ? 'デバイス情報で既存のWTRレコードを更新しました'
-              : 'Successfully updated existing WTR record with device info';
-        }
-        ScaffoldMessenger.of(context).removeCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(successMessage)),
-        );
+        await _completeLoginAfterConfirmation(_idController.text, wtrResponse: wtrResponse);
       } catch (e) {
         ScaffoldMessenger.of(context).removeCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
         );
-      } finally {
         setState(() {
           _isLoading = false;
         });
       }
     }
   }
+
+  Future<void> _completeLoginAfterConfirmation(String idNumberForLogin, {Map<String, dynamic>? wtrResponse}) async {
+    try {
+      final actualIdNumber = await _apiService.insertIdNumber(
+        idNumberForLogin,
+        deviceId: _deviceId!,
+      );
+
+      final profileData = await _apiService.fetchProfile(actualIdNumber);
+
+      if (profileData["success"] == true) {
+        String profilePictureFileName = profileData["picture"];
+
+        String primaryUrl = "${ApiService.apiUrls[0]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
+        bool isPrimaryUrlValid = await _isImageAvailable(primaryUrl);
+
+        String fallbackUrl = "${ApiService.apiUrls[1]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
+        bool isFallbackUrlValid = await _isImageAvailable(fallbackUrl);
+
+        final timeInData = await _apiService.fetchTimeIns(actualIdNumber);
+        String? latestTimeIn = timeInData["latestTimeIn"] != null
+            ? _formatTimeIn(timeInData["latestTimeIn"])
+            : null;
+
+        int languageFlag = profileData["languageFlag"] ?? 1;
+        String language = languageFlag == 2 ? "ja" : "en";
+        await _updateLanguage(language);
+
+        setState(() {
+          _firstName = profileData["firstName"];
+          _surName = profileData["surName"];
+          _profilePictureUrl = isPrimaryUrlValid ? primaryUrl : isFallbackUrlValid ? fallbackUrl : null;
+          _currentIdNumber = actualIdNumber;
+          _latestTimeIn = latestTimeIn;
+          _isLoggedIn = true;
+          _idController.text = actualIdNumber;
+        });
+        if (profileData["birthdate"] != null) {
+          final birthdate = DateTime.parse(profileData["birthdate"]);
+          final today = DateTime.now();
+          if (birthdate.month == today.month && birthdate.day == today.day) {
+            if (Navigator.of(context).canPop()) {
+              BirthdayCelebration.close(context);
+            }
+
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              showDialog(
+                context: context,
+                barrierColor: Colors.black.withOpacity(0.5),
+                barrierDismissible: false,
+                builder: (context) {
+                  return BirthdayCelebration(
+                    name: profileData["firstName"],
+                    languageFlag: profileData["languageFlag"] ?? 1,
+                    onFinish: () {
+                      Navigator.of(context).pop();
+                    },
+                    duration: const Duration(seconds: 9),
+                  );
+                },
+              );
+            });
+          }
+        }
+      }
+
+      if (wtrResponse != null && (wtrResponse['isLate'] == true || wtrResponse['isRelogin'] == true)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              String title;
+              String message;
+
+              if (wtrResponse['isRelogin'] == true && wtrResponse['isLate'] == true) {
+                title = _currentLanguage == 'ja' ? "再ログイン (遅刻)" : "Relogin (Late)";
+                message = _currentLanguage == 'ja'
+                    ? "再ログインされました。シフトに遅刻しています"
+                    : "You have relogged in and you are late for your shift";
+              } else if (wtrResponse['isRelogin'] == true) {
+                title = _currentLanguage == 'ja' ? "再ログイン" : "Relogin";
+                message = _currentLanguage == 'ja'
+                    ? "再ログインされました"
+                    : "You have relogged in";
+              } else {
+                title = _currentLanguage == 'ja' ? "遅刻ログイン" : "Late Login";
+                message = wtrResponse['lateMessage'] ??
+                    (_currentLanguage == 'ja'
+                        ? "シフトに遅刻しています"
+                        : "You are late for your shift");
+              }
+
+              return AlertDialog(
+                title: Text(title),
+                content: Text(message),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text("OK"),
+                  ),
+                ],
+              );
+            },
+          );
+        });
+      }
+
+      String successMessage = _currentLanguage == 'ja'
+          ? 'ID: $actualIdNumber でログインしました'
+          : 'Successfully logged in with ID: $actualIdNumber';
+      if (wtrResponse != null && wtrResponse['updated'] == true) {
+        successMessage = _currentLanguage == 'ja'
+            ? 'デバイス情報で既存のWTRレコードを更新しました'
+            : 'Successfully updated existing WTR record with device info';
+      }
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(successMessage)),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst("Exception: ", ""))),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
   Future<void> _logout() async {
     final isExempted = exemptedIds.contains(_currentIdNumber);
     try {
@@ -1353,16 +1438,33 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           return;
         }
 
-        if (logoutResult["isUndertime"] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(_currentLanguage == 'ja'
-                  ? 'シフト終了前にログアウトしました'
-                  : 'You have logged out before your shift ended'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
+        await _completeLogoutAfterConfirmation(isUndertime: logoutResult["isUndertime"] == true);
+        return;
+      }
+
+      await _completeLogoutAfterConfirmation();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_currentLanguage == 'ja' ? 'エラーが発生しました' : 'An error occurred'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _completeLogoutAfterConfirmation({bool isUndertime = false}) async {
+    try {
+      if (isUndertime) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(_currentLanguage == 'ja'
+                ? 'シフト終了前にログアウトしました'
+                : 'You have logged out before your shift ended'),
+            duration: Duration(seconds: 2),
+          ),
+        );
       }
 
       await _apiService.logout(_deviceId!);
