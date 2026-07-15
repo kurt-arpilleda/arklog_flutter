@@ -2576,16 +2576,35 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                                 suffixIcon: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.qr_code_scanner),
-                                      onPressed: _openBarcodeScannerForId,
+                                    GestureDetector(
+                                      onTap: _openBarcodeScannerForId,
+                                      child: Container(
+                                        height: 24,
+                                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFF3452B4),
+                                          borderRadius: BorderRadius.circular(4),
+                                        ),
+                                        child: const Center(
+                                          child: Text(
+                                            '𝄃𝄂𝄂𝄀𝄁𝄃',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.w400,
+                                              fontFamily: 'Arial',
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
+                                    const SizedBox(width: 4),
                                     if (_idController.text.isNotEmpty)
                                       IconButton(
-                                        icon: const Icon(Icons.clear),
-                                        onPressed: () {
-                                          _idController.clear();
-                                        },
+                                        icon: const Icon(Icons.clear, size: 20),
+                                        onPressed: () => _idController.clear(),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints.tightFor(width: 24, height: 24),
                                       ),
                                   ],
                                 ),
