@@ -651,6 +651,38 @@ class ApiService {
     return result.value;
   }
 
+  Future<Map<String, dynamic>> checkPendingWTR(String deviceId) async {
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkPendingWTR.php");
+          final response = await httpClient.post(
+            uri,
+            body: {'deviceId': deviceId},
+          );
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            if (data["success"] == true) {
+              return _ApiResult(data, apiUrl);
+            }
+            throw Exception(data["error"] ?? "Failed to check pending WTR");
+          }
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return result.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          final delay = initialRetryDelay * (1 << (attempt - 1));
+          await Future.delayed(delay);
+        }
+      }
+    }
+    throw Exception("Both API URLs are unreachable after $maxRetries attempts");
+  }
+
   Future<Map<String, dynamic>> checkExclusiveLogin(String deviceId) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {

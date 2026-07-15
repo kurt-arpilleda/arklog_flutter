@@ -52,6 +52,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   String? _serverQrCode;
   Timer? _timer;
   bool _isExclusiveUser = false;
+  bool _isAuthFlowActive = false;
   bool _isFlashOn = false;
   bool _isQrScannerOpen = false;
   String _phoneName = 'ARK LOG PH';
@@ -71,6 +72,9 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 
   }
   Future<void> _initializeApp() async {
+    if (_isAuthFlowActive) {
+      return;
+    }
     try {
       setState(() {
         _isInitializing = true;
@@ -101,11 +105,13 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         }
       }
 
+      String? exclusiveBoundIdNumber;
       if (_deviceId != null) {
         try {
           final exclusiveCheck = await _apiService.checkExclusiveLogin(_deviceId!);
           if (exclusiveCheck['isExclusive'] == true) {
             final idNumber = exclusiveCheck['idNumber'];
+            exclusiveBoundIdNumber = idNumber;
 
             if (_isLoggedIn && _currentIdNumber != idNumber) {
               setState(() {
@@ -148,6 +154,24 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         await _loadLastIdNumber();
       }
 
+      if (_deviceId != null) {
+        try {
+          final pendingCheck = await _apiService.checkPendingWTR(_deviceId!);
+          if (pendingCheck["hasPending"] == true) {
+            final pendingIdNumber = pendingCheck["idNumber"] as String;
+            if (pendingIdNumber != exclusiveBoundIdNumber) {
+              if (pendingCheck["type"] == "login" && !_isLoggedIn) {
+                await _resumeLoginConfirmation(pendingIdNumber);
+              } else if (pendingCheck["type"] == "logout") {
+                await _resumeLogoutConfirmation(pendingIdNumber);
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint("Error checking pending WTR: $e");
+        }
+      }
+
       if (!_isLoggedIn) {
         _checkReminder();
       }
@@ -159,6 +183,132 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       });
     }
   }
+  Future<void> _resumeLoginConfirmation(String idNumber) async {
+    setState(() {
+      _isLoading = true;
+      _isAuthFlowActive = true;
+    });
+
+    try {
+      final currentApiUrl = await _apiService.getCurrentApiUrl();
+      final loginImageFolderUrl =
+          "${currentApiUrl}V4/Others/Kurt/ArkLogAPI/Instruction%20Login/";
+
+      final bool? timeInConfirmed = await InstructionDialog.show(
+        context: context,
+        imageFolderUrl: loginImageFolderUrl,
+        isJapanese: _currentLanguage == 'ja',
+        waitingTitle: 'Confirming your login',
+        waitingTitleJa: 'ログインを確認しています',
+        onPoll: () => _apiService.checkTimeInStatus(idNumber),
+      );
+
+      if (timeInConfirmed != true) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      final actualIdNumber = await _apiService.insertIdNumber(
+        idNumber,
+        deviceId: _deviceId!,
+      );
+
+      final profileData = await _apiService.fetchProfile(actualIdNumber);
+
+      if (profileData["success"] == true) {
+        String profilePictureFileName = profileData["picture"];
+
+        String primaryUrl = "${ApiService.apiUrls[0]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
+        bool isPrimaryUrlValid = await _isImageAvailable(primaryUrl);
+
+        String fallbackUrl = "${ApiService.apiUrls[1]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
+        bool isFallbackUrlValid = await _isImageAvailable(fallbackUrl);
+
+        final timeInData = await _apiService.fetchTimeIns(actualIdNumber);
+        String? latestTimeIn = timeInData["latestTimeIn"] != null
+            ? _formatTimeIn(timeInData["latestTimeIn"])
+            : null;
+
+        int languageFlag = profileData["languageFlag"] ?? 1;
+        String language = languageFlag == 2 ? "ja" : "en";
+        await _updateLanguage(language);
+
+        setState(() {
+          _firstName = profileData["firstName"];
+          _surName = profileData["surName"];
+          _profilePictureUrl = isPrimaryUrlValid ? primaryUrl : isFallbackUrlValid ? fallbackUrl : null;
+          _currentIdNumber = actualIdNumber;
+          _latestTimeIn = latestTimeIn;
+          _isLoggedIn = true;
+          _idController.text = actualIdNumber;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error resuming login confirmation: $e");
+    } finally {
+      setState(() {
+        _isLoading = false;
+        _isAuthFlowActive = false;
+      });
+    }
+  }
+
+  Future<void> _resumeLogoutConfirmation(String idNumber) async {
+    setState(() {
+      _isLoading = true;
+      _isAuthFlowActive = true;
+    });
+
+    try {
+      final currentApiUrl = await _apiService.getCurrentApiUrl();
+      final logoutImageFolderUrl =
+          "${currentApiUrl}V4/Others/Kurt/ArkLogAPI/Instruction%20Logout/";
+
+      final bool? timeOutConfirmed = await InstructionDialog.show(
+        context: context,
+        imageFolderUrl: logoutImageFolderUrl,
+        isJapanese: _currentLanguage == 'ja',
+        waitingTitle: 'Confirming your logout',
+        waitingTitleJa: 'ログアウトを確認しています',
+        onPoll: () => _apiService.checkTimeOutStatus(idNumber),
+      );
+
+      if (timeOutConfirmed != true) {
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      await _apiService.logout(_deviceId!);
+
+      setState(() {
+        _isLoggedIn = false;
+        _firstName = null;
+        _surName = null;
+        _profilePictureUrl = null;
+        _currentIdNumber = null;
+        _idController.clear();
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_currentLanguage == 'ja' ? 'ログアウトに成功しました' : 'Logged out successfully'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    } catch (e) {
+      debugPrint("Error resuming logout confirmation: $e");
+    } finally {
+      setState(() {
+        _isLoading = false;
+        _isAuthFlowActive = false;
+      });
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -1037,6 +1187,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
+        _isAuthFlowActive = true;
       });
 
       try {
@@ -1231,18 +1382,23 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       } finally {
         setState(() {
           _isLoading = false;
+          _isAuthFlowActive = false;
         });
       }
     }
   }
   Future<void> _logout() async {
     final isExempted = exemptedIds.contains(_currentIdNumber);
+    _isAuthFlowActive = true;
     try {
       setState(() => _isLoading = true);
       final unfinishedCheck = await _apiService.checkUnfinishedWork(_currentIdNumber!);
       if (unfinishedCheck['hasUnfinishedWork'] == true) {
         await _showUnfinishedWorkDialog(unfinishedCheck['items']);
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _isAuthFlowActive = false;
+        });
         return;
       }
     } catch (e) {
@@ -1252,13 +1408,19 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     }
 
     final phoneConditionResult = await _showPhoneConditionDialogOut();
-    if (phoneConditionResult == null) return;
+    if (phoneConditionResult == null) {
+      setState(() => _isAuthFlowActive = false);
+      return;
+    }
 
     String phoneConditionOut = phoneConditionResult['phoneConditionOut'] ?? 'Good: Yes';
 
     if (!isExempted) {
       final bool? qrVerified = await _showQrScanner(isLogin: false, idNumberForQr: _currentIdNumber!);
-      if (qrVerified != true) return;
+      if (qrVerified != true) {
+        setState(() => _isAuthFlowActive = false);
+        return;
+      }
     }
 
     try {
@@ -1390,7 +1552,10 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         ),
       );
     } finally {
-      setState(() => _isLoading = false);
+      setState(() {
+        _isLoading = false;
+        _isAuthFlowActive = false;
+      });
     }
   }
 
