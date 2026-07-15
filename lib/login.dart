@@ -17,6 +17,7 @@ import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import 'birthday_celebration.dart';
 import 'todo_dialog.dart';
 import 'instructionDialog.dart';
+import 'barcode_scanner_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -439,6 +440,38 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 
   Future<void> _initializeDeviceId() async {
     _deviceId = await _getDeviceId();
+  }
+
+  Future<void> _openBarcodeScannerForId() async {
+    try {
+      final result = await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const BarcodeScannerScreen(),
+        ),
+      );
+
+      if (result != null && result is String && result.isNotEmpty) {
+        setState(() {
+          _idController.text = result;
+        });
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (_formKey.currentState?.validate() == true &&
+              !_isLoading &&
+              !_isLoggedIn) {
+            _login();
+          }
+        });
+      }
+    } catch (e) {
+      Fluttertoast.showToast(
+        msg: _currentLanguage == 'ja'
+            ? "バーコードスキャナーを開けませんでした"
+            : "Could not open barcode scanner",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+      );
+    }
   }
 
   Future<void> _loadLastIdNumber() async {
@@ -2540,13 +2573,22 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                               decoration: InputDecoration(
                                 labelText: _currentLanguage == 'ja' ? 'ID番号' : 'ID Number',
                                 prefixIcon: const Icon(Icons.badge),
-                                suffixIcon: _idController.text.isNotEmpty
-                                    ? IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: () {
-                                    _idController.clear();
-                                  },
-                                ) : null,
+                                suffixIcon: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.qr_code_scanner),
+                                      onPressed: _openBarcodeScannerForId,
+                                    ),
+                                    if (_idController.text.isNotEmpty)
+                                      IconButton(
+                                        icon: const Icon(Icons.clear),
+                                        onPressed: () {
+                                          _idController.clear();
+                                        },
+                                      ),
+                                  ],
+                                ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
                                 ),
