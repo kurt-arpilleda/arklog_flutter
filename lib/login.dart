@@ -575,8 +575,10 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       await Future.delayed(delay);
     }
     try {
-      final alreadySubmitted = await _apiService.checkToJapanSurvey(idNumber);
-      if (!alreadySubmitted && mounted) {
+      final status = await _apiService.checkToJapanSurvey(idNumber);
+      final isEligible = status["eligible"] == true;
+      final alreadySubmitted = status["submitted"] == true;
+      if (isEligible && !alreadySubmitted && mounted) {
         await ToJapanDialog.show(
           context: context,
           idNumber: idNumber,

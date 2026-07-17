@@ -1286,7 +1286,7 @@ class ApiService {
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
 
-  Future<bool> checkToJapanSurvey(String idNumber) async {
+  Future<Map<String, bool>> checkToJapanSurvey(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
@@ -1304,7 +1304,10 @@ class ApiService {
           throw Exception("HTTP ${response.statusCode}");
         });
 
-        return result.value["submitted"] == true;
+        return {
+          "eligible": result.value["eligible"] == true,
+          "submitted": result.value["submitted"] == true,
+        };
       } catch (e) {
         print("Attempt $attempt failed: $e");
         if (attempt < maxRetries) {
@@ -1313,7 +1316,7 @@ class ApiService {
         }
       }
     }
-    return true;
+    return {"eligible": false, "submitted": true};
   }
 
   Future<Map<String, dynamic>> submitToJapanSurvey({
