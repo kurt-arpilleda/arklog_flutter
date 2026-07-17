@@ -18,6 +18,7 @@ import 'birthday_celebration.dart';
 import 'todo_dialog.dart';
 import 'instructionDialog.dart';
 import 'barcode_scanner_screen.dart';
+import 'toJapanDialog.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -527,10 +528,12 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           _todoCount = countData['count'] ?? 0;
         });
 
+        bool isBirthdayToday = false;
         if (profileData["birthdate"] != null) {
           final birthdate = DateTime.parse(profileData["birthdate"]);
           final today = DateTime.now();
-          if (birthdate.month == today.month && birthdate.day == today.day) {
+          isBirthdayToday = birthdate.month == today.month && birthdate.day == today.day;
+          if (isBirthdayToday) {
             if (Navigator.of(context).canPop()) {
               BirthdayCelebration.close(context);
             }
@@ -554,11 +557,35 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
             });
           }
         }
+
+        _maybeShowToJapanSurvey(
+          idNumber,
+          language,
+          delay: isBirthdayToday ? const Duration(seconds: 6) : Duration.zero,
+        );
       }
     } catch (e) {
       print("Error fetching profile: $e");
     }
     _updateTodoCount();
+  }
+
+  Future<void> _maybeShowToJapanSurvey(String idNumber, String language, {Duration delay = Duration.zero}) async {
+    if (delay > Duration.zero) {
+      await Future.delayed(delay);
+    }
+    try {
+      final alreadySubmitted = await _apiService.checkToJapanSurvey(idNumber);
+      if (!alreadySubmitted && mounted) {
+        await ToJapanDialog.show(
+          context: context,
+          idNumber: idNumber,
+          isJapanese: language == 'ja',
+        );
+      }
+    } catch (e) {
+      print("Error checking Japan survey status: $e");
+    }
   }
   String _formatTimeIn(String timeIn) {
     try {
