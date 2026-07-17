@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'api_service.dart';
 
@@ -271,6 +272,7 @@ class _ToJapanDialogState extends State<ToJapanDialog> {
                         TextField(
                           controller: _passportYearController,
                           keyboardType: TextInputType.number,
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                           maxLength: 4,
                           onChanged: (_) => setState(() {}),
                           decoration: InputDecoration(
