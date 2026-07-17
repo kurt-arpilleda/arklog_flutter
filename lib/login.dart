@@ -1436,6 +1436,10 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(successMessage)),
         );
+        // Show Japan survey if conditions are met
+        if (mounted) {
+          _maybeShowToJapanSurvey(actualIdNumber, _currentLanguage ?? 'en');
+        }
       } catch (e) {
         ScaffoldMessenger.of(context).removeCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
