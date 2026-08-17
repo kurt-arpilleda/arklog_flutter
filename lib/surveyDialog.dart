@@ -46,7 +46,7 @@ class _SurveyDialogState extends State<SurveyDialog> {
   @override
   void initState() {
     super.initState();
-    _pollTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+    _pollTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
       _pollFinishStatus();
     });
   }
@@ -108,7 +108,7 @@ class _SurveyDialogState extends State<SurveyDialog> {
             children: [
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+                padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [Color(0xFF3452B4), Color(0xFF2053B3)],
@@ -122,13 +122,13 @@ class _SurveyDialogState extends State<SurveyDialog> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.assignment, color: Colors.white, size: 28),
-                    const SizedBox(width: 12),
+                    const Icon(Icons.assignment, color: Colors.white, size: 16),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         widget.isJapanese ? "アンケート" : "SURVEY",
                         style: const TextStyle(
-                          fontSize: 19,
+                          fontSize: 13,
                           fontWeight: FontWeight.bold,
                           color: Colors.white,
                           letterSpacing: 0.3,
@@ -136,8 +136,11 @@ class _SurveyDialogState extends State<SurveyDialog> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white),
+                      icon: const Icon(Icons.close, color: Colors.white, size: 16),
                       onPressed: _closeDialog,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                      visualDensity: VisualDensity.compact,
                     ),
                   ],
                 ),
