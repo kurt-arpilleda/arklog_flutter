@@ -1286,11 +1286,11 @@ class ApiService {
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
 
-  Future<Map<String, dynamic>> checkArkLogSurvey() async {
+  Future<Map<String, dynamic>> checkShowSurvey(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkArkLogSurvey.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkShowSurvey.php?idNumber=$idNumber");
           final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
@@ -1304,8 +1304,12 @@ class ApiService {
           throw Exception("HTTP ${response.statusCode}");
         });
 
+        final qualified = result.value["qualified"] == true;
+        final finish = result.value["finish"] == true;
+
         return {
-          "show": result.value["show"] == true,
+          "show": qualified && !finish,
+          "finish": finish,
           "surveyLink": result.value["surveyLink"],
           "apiUrl": result.apiUrlUsed,
         };
@@ -1317,7 +1321,7 @@ class ApiService {
         }
       }
     }
-    return {"show": false, "surveyLink": null, "apiUrl": null};
+    return {"show": false, "finish": false, "surveyLink": null, "apiUrl": null};
   }
 }
 

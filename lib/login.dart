@@ -575,7 +575,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       await Future.delayed(delay);
     }
     try {
-      final status = await _apiService.checkArkLogSurvey();
+      final status = await _apiService.checkShowSurvey(idNumber);
       final shouldShow = status["show"] == true;
       final surveyLink = status["surveyLink"];
       final apiUrl = status["apiUrl"];
@@ -583,6 +583,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         await SurveyDialog.show(
           context: context,
           surveyUrl: "$apiUrl$surveyLink?idNumber=$idNumber",
+          idNumber: idNumber,
           isJapanese: language == 'ja',
         );
       }

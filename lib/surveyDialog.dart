@@ -1,19 +1,24 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'api_service.dart';
 
 class SurveyDialog extends StatefulWidget {
   final String surveyUrl;
+  final String idNumber;
   final bool isJapanese;
 
   const SurveyDialog({
     Key? key,
     required this.surveyUrl,
+    required this.idNumber,
     this.isJapanese = false,
   }) : super(key: key);
 
   static Future<void> show({
     required BuildContext context,
     required String surveyUrl,
+    required String idNumber,
     bool isJapanese = false,
   }) {
     return showDialog<void>(
@@ -21,7 +26,7 @@ class SurveyDialog extends StatefulWidget {
       barrierDismissible: false,
       barrierColor: Colors.black.withOpacity(0.5),
       builder: (context) {
-        return SurveyDialog(surveyUrl: surveyUrl, isJapanese: isJapanese);
+        return SurveyDialog(surveyUrl: surveyUrl, idNumber: idNumber, isJapanese: isJapanese);
       },
     );
   }
@@ -34,6 +39,45 @@ class _SurveyDialogState extends State<SurveyDialog> {
   InAppWebViewController? webViewController;
   double _progress = 0;
   bool _isLoading = true;
+  final ApiService _apiService = ApiService();
+  Timer? _pollTimer;
+  bool _closing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (timer) {
+      _pollFinishStatus();
+    });
+  }
+
+  Future<void> _pollFinishStatus() async {
+    if (_closing) return;
+    try {
+      final status = await _apiService.checkShowSurvey(widget.idNumber);
+      final finish = status["finish"] == true;
+      if (finish && mounted && !_closing) {
+        _closeDialog();
+      }
+    } catch (e) {
+      print("Error polling survey finish status: $e");
+    }
+  }
+
+  void _closeDialog() {
+    if (_closing || !mounted) return;
+    final route = ModalRoute.of(context);
+    if (route != null && !route.isCurrent) return;
+    _closing = true;
+    _pollTimer?.cancel();
+    Navigator.of(context).pop();
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +137,7 @@ class _SurveyDialogState extends State<SurveyDialog> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.close, color: Colors.white),
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: _closeDialog,
                     ),
                   ],
                 ),
