@@ -18,7 +18,7 @@ import 'birthday_celebration.dart';
 import 'todo_dialog.dart';
 import 'instructionDialog.dart';
 import 'barcode_scanner_screen.dart';
-import 'toJapanDialog.dart';
+import 'surveyDialog.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -558,7 +558,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           }
         }
 
-        _maybeShowToJapanSurvey(
+        _maybeShowArkLogSurvey(
           idNumber,
           language,
           delay: isBirthdayToday ? const Duration(seconds: 6) : Duration.zero,
@@ -570,23 +570,24 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     _updateTodoCount();
   }
 
-  Future<void> _maybeShowToJapanSurvey(String idNumber, String language, {Duration delay = Duration.zero}) async {
+  Future<void> _maybeShowArkLogSurvey(String idNumber, String language, {Duration delay = Duration.zero}) async {
     if (delay > Duration.zero) {
       await Future.delayed(delay);
     }
     try {
-      final status = await _apiService.checkToJapanSurvey(idNumber);
-      final isEligible = status["eligible"] == true;
-      final alreadySubmitted = status["submitted"] == true;
-      if (isEligible && !alreadySubmitted && mounted) {
-        await ToJapanDialog.show(
+      final status = await _apiService.checkArkLogSurvey();
+      final shouldShow = status["show"] == true;
+      final surveyLink = status["surveyLink"];
+      final apiUrl = status["apiUrl"];
+      if (shouldShow && surveyLink != null && apiUrl != null && mounted) {
+        await SurveyDialog.show(
           context: context,
-          idNumber: idNumber,
+          surveyUrl: "$apiUrl$surveyLink?idNumber=$idNumber",
           isJapanese: language == 'ja',
         );
       }
     } catch (e) {
-      print("Error checking Japan survey status: $e");
+      print("Error checking ArkLog survey status: $e");
     }
   }
   String _formatTimeIn(String timeIn) {
@@ -1436,9 +1437,8 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(successMessage)),
         );
-        // Show Japan survey if conditions are met
         if (mounted) {
-          _maybeShowToJapanSurvey(actualIdNumber, _currentLanguage ?? 'en');
+          _maybeShowArkLogSurvey(actualIdNumber, _currentLanguage ?? 'en');
         }
       } catch (e) {
         ScaffoldMessenger.of(context).removeCurrentSnackBar();

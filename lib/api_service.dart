@@ -1286,11 +1286,11 @@ class ApiService {
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
 
-  Future<Map<String, bool>> checkToJapanSurvey(String idNumber) async {
+  Future<Map<String, dynamic>> checkArkLogSurvey() async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkToJapanSurvey.php?idNumber=$idNumber");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkArkLogSurvey.php");
           final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
@@ -1305,8 +1305,9 @@ class ApiService {
         });
 
         return {
-          "eligible": result.value["eligible"] == true,
-          "submitted": result.value["submitted"] == true,
+          "show": result.value["show"] == true,
+          "surveyLink": result.value["surveyLink"],
+          "apiUrl": result.apiUrlUsed,
         };
       } catch (e) {
         print("Attempt $attempt failed: $e");
@@ -1316,52 +1317,7 @@ class ApiService {
         }
       }
     }
-    return {"eligible": false, "submitted": true};
-  }
-
-  Future<Map<String, dynamic>> submitToJapanSurvey({
-    required String idNumber,
-    required int isInterested,
-    int? interestedType,
-    required int hasPassport,
-    String? passportValidity,
-  }) async {
-    for (int attempt = 1; attempt <= maxRetries; attempt++) {
-      try {
-        final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_submitToJapanSurvey.php");
-          final response = await httpClient.post(
-            uri,
-            body: {
-              'idNumber': idNumber,
-              'isInterested': isInterested.toString(),
-              'interestedType': interestedType?.toString() ?? '',
-              'hasPassport': hasPassport.toString(),
-              'passportValidity': passportValidity ?? '',
-            },
-          );
-
-          if (response.statusCode == 200) {
-            final data = jsonDecode(response.body);
-            if (data["success"] == true) {
-              return _ApiResult(data, apiUrl);
-            } else {
-              throw Exception(data["message"] ?? "Failed to submit survey");
-            }
-          }
-          throw Exception("HTTP ${response.statusCode}");
-        });
-
-        return result.value;
-      } catch (e) {
-        print("Attempt $attempt failed: $e");
-        if (attempt < maxRetries) {
-          final delay = initialRetryDelay * (1 << (attempt - 1));
-          await Future.delayed(delay);
-        }
-      }
-    }
-    throw Exception("Both API URLs are unreachable after $maxRetries attempts");
+    return {"show": false, "surveyLink": null, "apiUrl": null};
   }
 }
 
