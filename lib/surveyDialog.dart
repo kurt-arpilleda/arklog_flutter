@@ -135,13 +135,7 @@ class _SurveyDialogState extends State<SurveyDialog> {
                         ),
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close, color: Colors.white, size: 16),
-                      onPressed: _closeDialog,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
-                      visualDensity: VisualDensity.compact,
-                    ),
+                    // Close button removed – user must complete the survey
                   ],
                 ),
               ),
