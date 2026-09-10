@@ -98,7 +98,7 @@ class ApiService {
     final phorjp = prefs.getString('phorjp') ?? 'ph';
     return phorjp == 'jp'
         ? ["http://192.168.1.213/", "http://220.157.175.232/"]
-        : ["http://192.168.254.163/", "http://126.209.7.246/"];
+        : ["http://192.168.254.163/", "http://113.19.11.218/"];
   }
 
   Future<String> getCurrentApiUrl() async {
