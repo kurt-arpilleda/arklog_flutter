@@ -13,7 +13,6 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:intl/intl.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz;
-import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import '../birthday_celebration.dart';
 import '../todo_dialog.dart';
 
@@ -29,8 +28,6 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   final _formKey = GlobalKey<FormState>();
   final ApiService _apiService = ApiService();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
-  QRViewController? qrController;
   bool _isLoading = false;
   bool _isInitializing = true; // New flag for initial loading
   String? _firstName;
@@ -47,15 +44,11 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   bool _isCountryLoadingJp = false;
   String _currentDateTime = '';
   String? _latestTimeIn;
-  String? _qrErrorMessage;
   Timer? _timer;
   bool _isExclusiveUser = false;
-  bool _isFlashOn = false;
-  bool _isQrScannerOpen = false;
   String _phoneName = 'ARK LOG JP';
   int _todoCount = 0;
   Timer? _todoTimer;
-  static const List<String> exemptedIds = ['1238', '0939', '1288', '1239', '1200', '0001'];
   @override
   void initState() {
     super.initState();
@@ -163,14 +156,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      if (_isQrScannerOpen && Navigator.canPop(context)) {
-        Navigator.of(context).pop(false); // Close the QR scanner dialog
-      }
       _initializeApp();
-    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      if (_isQrScannerOpen && Navigator.canPop(context)) {
-        Navigator.of(context).pop(false); // Close the QR scanner dialog
-      }
     }
   }
   void _updateDateTime() {
@@ -314,10 +300,11 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
       if (profileData["success"] == true) {
         String profilePictureFileName = profileData["picture"];
 
-        String primaryUrl = "${ApiService.apiUrls[0]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
+        final currentApiUrls = await _apiService.getCurrentApiUrls();
+        String primaryUrl = "${currentApiUrls[0]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
         bool isPrimaryUrlValid = await _isImageAvailable(primaryUrl);
 
-        String fallbackUrl = "${ApiService.apiUrls[1]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
+        String fallbackUrl = "${currentApiUrls[1]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
         bool isFallbackUrlValid = await _isImageAvailable(fallbackUrl);
 
         // Fetch timeIn records
@@ -629,7 +616,6 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     final GlobalKey _choiceChipsKey = GlobalKey();
 
     final currentDate = DateFormat('MMMM d, y').format(DateTime.now());
-    final isExempted = exemptedIds.contains(_currentIdNumber);
 
     Map<String, dynamic> workTimeInfo = {};
     Map<String, dynamic> outputToday = {'outputQty': 0, 'stTime': '00:00:00', 'ngQty': 0, 'ngCount': 0};
@@ -928,9 +914,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
                     Navigator.of(context).pop({'phoneConditionOut': finalCondition});
                   },
                   child: Text(
-                    isExempted
-                        ? (_currentLanguage == 'ja' ? '確認' : 'Confirm')
-                        : (_currentLanguage == 'ja' ? 'スキャン' : 'Scan'),
+                    _currentLanguage == 'ja' ? '確認' : 'Confirm',
                     style: TextStyle(fontSize: 14),
                   ),
                 ),
@@ -1090,10 +1074,11 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
         if (profileData["success"] == true) {
           String profilePictureFileName = profileData["picture"];
 
-          String primaryUrl = "${ApiService.apiUrls[0]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
+          final currentApiUrls = await _apiService.getCurrentApiUrls();
+          String primaryUrl = "${currentApiUrls[0]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
           bool isPrimaryUrlValid = await _isImageAvailable(primaryUrl);
 
-          String fallbackUrl = "${ApiService.apiUrls[1]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
+          String fallbackUrl = "${currentApiUrls[1]}V4/11-A%20Employee%20List%20V2/profilepictures/$profilePictureFileName";
           bool isFallbackUrlValid = await _isImageAvailable(fallbackUrl);
 
           // Fetch timeIn records
@@ -1213,7 +1198,6 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     }
   }
   Future<void> _logout() async {
-    final isExempted = exemptedIds.contains(_currentIdNumber);
     try {
       setState(() => _isLoading = true);
       final unfinishedCheck = await _apiService.checkUnfinishedWork(_currentIdNumber!);
@@ -1232,11 +1216,6 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     if (phoneConditionResult == null) return;
 
     String phoneConditionOut = phoneConditionResult['phoneConditionOut'] ?? 'Good: Yes';
-
-    if (!isExempted) {
-      final bool? qrVerified = await _showQrScanner();
-      if (qrVerified != true) return;
-    }
 
     try {
       setState(() => _isLoading = true);
@@ -1476,203 +1455,6 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
     );
   }
 
-
-  Future<bool?> _showQrScanner() async {
-    _qrErrorMessage = null;
-    _isFlashOn = false;
-    _isQrScannerOpen = true;
-
-    return await showDialog<bool>(
-      context: context,
-      barrierDismissible: false, // This prevents closing when tapping outside
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return Dialog(
-              insetPadding: const EdgeInsets.all(8),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final screenWidth = MediaQuery.of(context).size.width;
-                  final screenHeight = MediaQuery.of(context).size.height;
-                  final isLandscape = screenWidth > screenHeight;
-                  final maxScannerSize = isLandscape
-                      ? screenHeight - 120
-                      : screenWidth * 0.92;
-                  final cutOutSize = maxScannerSize * 0.9;
-
-                  return SingleChildScrollView(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Column(
-                            children: [
-                              Text(
-                                _currentLanguage == 'ja'
-                                    ? 'ログアウトするためにQRコードをスキャンしてください'
-                                    : 'Scan the QR code to log out',
-                                style: TextStyle(
-                                  fontSize: _currentLanguage == 'ja' ? 16 : 18,
-                                  fontWeight: FontWeight.bold,
-                                  height: 1.4,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12), // reduced spacing
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: ConstrainedBox(
-                              constraints: BoxConstraints(
-                                maxWidth: maxScannerSize,
-                                maxHeight: maxScannerSize,
-                              ),
-                              child: AspectRatio(
-                                aspectRatio: 1,
-                                child: QRView(
-                                  key: qrKey,
-                                  onQRViewCreated: (controller) =>
-                                      _onQRViewCreated(controller, setState),
-                                  overlay: QrScannerOverlayShape(
-                                    borderColor: Colors.red,
-                                    borderRadius: 10,
-                                    borderLength: 40,
-                                    borderWidth: 8,
-                                    cutOutSize: cutOutSize,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            _currentLanguage == 'ja'
-                                ? '⚠️ ログアウトするにはArktechのWi-Fiネットワークに接続してください。'
-                                : '⚠️ Connect to the Arktech Wi-Fi network to log out.',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.deepOrange,
-                              fontWeight: FontWeight.w600,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          if (_qrErrorMessage != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                _qrErrorMessage!,
-                                style: const TextStyle(
-                                  color: Colors.red,
-                                  fontSize: 14,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              const Expanded(child: SizedBox()), // Spacer
-                              IconButton(
-                                icon: Icon(
-                                  Icons.highlight,
-                                  color: _isFlashOn ? Colors.amber : Colors.grey,
-                                  size: 36,
-                                ),
-                                onPressed: () async {
-                                  if (qrController != null) {
-                                    await qrController?.toggleFlash();
-                                    setState(() {
-                                      _isFlashOn = !_isFlashOn;
-                                    });
-                                  }
-                                },
-                              ),
-                              Expanded(
-                                child: Align(
-                                  alignment: Alignment.centerRight,
-                                  child: TextButton(
-                                    onPressed: () {
-                                      _isFlashOn = false;
-                                      Navigator.of(context).pop(false);
-                                      qrController?.dispose();
-                                    },
-                                    child: Text(
-                                      _currentLanguage == 'ja'
-                                          ? 'キャンセル'
-                                          : 'Cancel',
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            );
-          },
-        );
-      },
-    ).then((value) {
-      _isFlashOn = false;
-      _isQrScannerOpen = false;
-      return value;
-    });
-  }
-
-  String xorDecrypt(String base64Data, String key) {
-    final decodedBytes = base64.decode(base64Data);
-    final keyBytes = utf8.encode(key);
-    final decryptedBytes = List<int>.generate(decodedBytes.length, (i) {
-      return decodedBytes[i] ^ keyBytes[i % keyBytes.length];
-    });
-    return utf8.decode(decryptedBytes);
-  }
-
-  void _onQRViewCreated(QRViewController controller, void Function(void Function()) setState) {
-    qrController = controller;
-    bool isVerified = false;
-
-    controller.scannedDataStream.listen((scanData) {
-      if (isVerified) return;
-
-      final qrData = scanData.code;
-      if (qrData == null) return;
-
-      try {
-        final decrypted = xorDecrypt(qrData, 'arklog123'); // same key as used in PHP
-
-        if (decrypted == '4rkT3chBirthD@y=2003-06-09 06:31:20') {
-          isVerified = true;
-          qrController?.pauseCamera();
-          Navigator.of(context).pop(true);
-          qrController?.dispose();
-        } else {
-          setState(() {
-            _qrErrorMessage = _currentLanguage == 'ja'
-                ? '無効なQRコードデータです'
-                : 'Invalid QR code data';
-          });
-        }
-      } catch (e) {
-        setState(() {
-          _qrErrorMessage = _currentLanguage == 'ja'
-              ? 'QRコードのデコードに失敗しました'
-              : 'Failed to decode QR code';
-        });
-      }
-    });
-  }
-
   Future<String> _getDeviceId() async {
     try {
       String? identifier = await UniqueIdentifier.serial;
@@ -1688,7 +1470,6 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    qrController?.dispose();
     _idController.dispose();
     _timer?.cancel();
     _todoTimer?.cancel();

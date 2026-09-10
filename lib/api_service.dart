@@ -101,6 +101,10 @@ class ApiService {
         : ["http://192.168.254.163/", "http://113.19.11.218/"];
   }
 
+  Future<List<String>> getCurrentApiUrls() async {
+    return await _getCurrentApiUrls();
+  }
+
   Future<String> getCurrentApiUrl() async {
     final currentApiUrls = await _getCurrentApiUrls();
     if (_lastWorkingServerIndex != null && _lastWorkingServerIndex! < currentApiUrls.length) {
