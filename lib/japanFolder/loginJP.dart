@@ -55,7 +55,7 @@ class _LoginScreenState extends State<LoginScreenJP> with WidgetsBindingObserver
   String _phoneName = 'ARK LOG JP';
   int _todoCount = 0;
   Timer? _todoTimer;
-  static const List<String> exemptedIds = ['1238', '0939', '1288', '1239', '1200', '0280', '0001'];
+  static const List<String> exemptedIds = ['1238', '0939', '1288', '1239', '1200', '0001'];
   @override
   void initState() {
     super.initState();
