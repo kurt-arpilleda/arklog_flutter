@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'api_service.dart';
 
@@ -50,6 +51,11 @@ class _NoDtrDialogState extends State<NoDtrDialog> {
   bool _isClosing = false;
   TimeOfDay? _timeOut;
   String? _error;
+  String? _displayId;
+  String? _firstName;
+  String? _surName;
+  String? _pictureUrl;
+  bool _profileRequested = false;
 
   static const int _reasonMin = 5;
   static const int _reasonMax = 255;
@@ -146,19 +152,54 @@ class _NoDtrDialogState extends State<NoDtrDialog> {
       }
       if (!mounted) return;
       final preTimeOut = list.first['timeOut']?.toString() ?? '';
+      final resolvedId = data['idNumber']?.toString() ?? widget.idNumber;
       setState(() {
         _pending = list;
+        _displayId = resolvedId;
         _timeOut = preTimeOut.isNotEmpty ? _parseHm(preTimeOut) : null;
         _reasonController.clear();
         _error = null;
         _isLoading = false;
       });
+      _loadProfile(resolvedId);
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isLoading = false;
         _loadFailed = true;
       });
+    }
+  }
+
+  Future<void> _loadProfile(String id) async {
+    if (_profileRequested) return;
+    _profileRequested = true;
+    try {
+      final profile = await widget.apiService.fetchProfile(id);
+      if (profile["success"] != true || !mounted) return;
+      final fileName = profile["picture"]?.toString() ?? '';
+      String? foundUrl;
+      if (fileName.isNotEmpty) {
+        final urls = await widget.apiService.getCurrentApiUrls();
+        for (final base in urls) {
+          final url = "${base}V4/11-A%20Employee%20List%20V2/profilepictures/$fileName";
+          try {
+            final response = await http.head(Uri.parse(url)).timeout(const Duration(seconds: 3));
+            if (response.statusCode == 200) {
+              foundUrl = url;
+              break;
+            }
+          } catch (e) {}
+        }
+      }
+      if (!mounted) return;
+      setState(() {
+        _firstName = profile["firstName"]?.toString();
+        _surName = profile["surName"]?.toString();
+        _pictureUrl = foundUrl;
+      });
+    } catch (e) {
+      _profileRequested = false;
     }
   }
 
@@ -328,6 +369,76 @@ class _NoDtrDialogState extends State<NoDtrDialog> {
     );
   }
 
+  Widget _buildEmployeeCard() {
+    final fullName = '${_firstName ?? ''} ${_surName ?? ''}'.trim();
+    final id = _displayId ?? widget.idNumber;
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFBFD3F5)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 60,
+            height: 60,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.blue[50],
+              border: Border.all(color: const Color(0xFF3452B4), width: 2),
+            ),
+            child: _pictureUrl != null
+                ? ClipOval(
+              child: Image.network(
+                _pictureUrl!,
+                width: 60,
+                height: 60,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => const Icon(
+                  Icons.person,
+                  size: 32,
+                  color: Color(0xFF3452B4),
+                ),
+              ),
+            )
+                : const Icon(Icons.person, size: 32, color: Color(0xFF3452B4)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  fullName.isNotEmpty
+                      ? fullName
+                      : (widget.isJapanese ? '読み込み中...' : 'Loading...'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1B1F24),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'ID: $id',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLoading() {
     return const Padding(
       padding: EdgeInsets.symmetric(vertical: 60),
@@ -389,6 +500,8 @@ class _NoDtrDialogState extends State<NoDtrDialog> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
+          _buildEmployeeCard(),
+          const SizedBox(height: 16),
           if (remaining > 1)
             Align(
               alignment: Alignment.centerLeft,
