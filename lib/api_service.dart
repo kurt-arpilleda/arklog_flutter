@@ -1327,6 +1327,73 @@ class ApiService {
     }
     return {"show": false, "finish": false, "surveyLink": null, "apiUrl": null};
   }
+  Future<Map<String, dynamic>> fetchNoDtr(String idNumber) async {
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchNoDtr.php");
+          final response = await httpClient.post(
+            uri,
+            body: {'idNumber': idNumber},
+          );
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            if (data["success"] == true) {
+              return _ApiResult(data, apiUrl);
+            }
+            throw Exception(data["message"] ?? "Failed to fetch missing time out");
+          }
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return Map<String, dynamic>.from(result.value);
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < 3) {
+          await Future.delayed(initialRetryDelay * attempt);
+        }
+      }
+    }
+    throw Exception("Both API URLs are unreachable after 3 attempts");
+  }
+
+  Future<Map<String, dynamic>> saveNoDtr({
+    required String idNumber,
+    required int dtrId,
+    required String timeOut,
+    required String reason,
+  }) async {
+    for (int attempt = 1; attempt <= 3; attempt++) {
+      try {
+        final result = await _makeParallelRequest((apiUrl) async {
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_saveNoDtr.php");
+          final response = await httpClient.post(
+            uri,
+            body: {
+              'idNumber': idNumber,
+              'dtrId': dtrId.toString(),
+              'timeOut': timeOut,
+              'reason': reason,
+            },
+          );
+
+          if (response.statusCode == 200) {
+            return _ApiResult(jsonDecode(response.body), apiUrl);
+          }
+          throw Exception("HTTP ${response.statusCode}");
+        });
+
+        return Map<String, dynamic>.from(result.value);
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < 3) {
+          await Future.delayed(initialRetryDelay * attempt);
+        }
+      }
+    }
+    throw Exception("Both API URLs are unreachable after 3 attempts");
+  }
 }
 
 class _ApiResult<T> {

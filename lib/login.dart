@@ -19,6 +19,7 @@ import 'todo_dialog.dart';
 import 'instructionDialog.dart';
 import 'barcode_scanner_screen.dart';
 import 'surveyDialog.dart';
+import 'noDtrDialog.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -57,6 +58,9 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   bool _isAuthFlowActive = false;
   bool _isFlashOn = false;
   bool _isQrScannerOpen = false;
+  bool _isNoDtrShowing = false;
+  bool _isBirthdayShowing = false;
+  bool _isSurveyShowing = false;
   String _phoneName = 'ARK LOG PH';
   int _todoCount = 0;
   Timer? _todoTimer;
@@ -183,6 +187,13 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       setState(() {
         _isInitializing = false;
       });
+      if (_isLoggedIn &&
+          _currentIdNumber != null &&
+          !_isAuthFlowActive &&
+          !_isQrScannerOpen) {
+        final noDtrId = _currentIdNumber!;
+        WidgetsBinding.instance.addPostFrameCallback((_) => _runNoDtr(noDtrId));
+      }
     }
   }
   Future<void> _resumeLoginConfirmation(String idNumber) async {
@@ -534,10 +545,11 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           final today = DateTime.now();
           isBirthdayToday = birthdate.month == today.month && birthdate.day == today.day;
           if (isBirthdayToday) {
-            if (Navigator.of(context).canPop()) {
+            if (_isBirthdayShowing && Navigator.of(context).canPop()) {
               BirthdayCelebration.close(context);
             }
 
+            _isBirthdayShowing = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               showDialog(
                 context: context,
@@ -548,12 +560,14 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                     name: profileData["firstName"],
                     languageFlag: profileData["languageFlag"] ?? 1,
                     onFinish: () {
-                      Navigator.of(context).pop();
+                      if (ModalRoute.of(context)?.isCurrent ?? false) {
+                        Navigator.of(context).pop();
+                      }
                     },
                     duration: const Duration(seconds: 5),
                   );
                 },
-              );
+              ).whenComplete(() => _isBirthdayShowing = false);
             });
           }
         }
@@ -571,10 +585,11 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _maybeShowArkLogSurvey(String idNumber, String language, {Duration delay = Duration.zero}) async {
-    if (delay > Duration.zero) {
-      await Future.delayed(delay);
-    }
+    _isSurveyShowing = true;
     try {
+      if (delay > Duration.zero) {
+        await Future.delayed(delay);
+      }
       final status = await _apiService.checkShowSurvey(idNumber);
       final shouldShow = status["show"] == true;
       final surveyLink = status["surveyLink"];
@@ -589,6 +604,8 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       }
     } catch (e) {
       print("Error checking ArkLog survey status: $e");
+    } finally {
+      _isSurveyShowing = false;
     }
   }
   String _formatTimeIn(String timeIn) {
@@ -1195,6 +1212,31 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       },
     );
   }
+  Future<void> _runNoDtr(String idNumber) async {
+    if (_isNoDtrShowing || !mounted) return;
+    _isNoDtrShowing = true;
+    try {
+      while ((_isBirthdayShowing || _isSurveyShowing) && mounted) {
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+      if (!mounted) return;
+      final data = await _apiService.fetchNoDtr(idNumber);
+      final pending = data['pending'];
+      if (pending is List && pending.isNotEmpty && mounted) {
+        await NoDtrDialog.show(
+          context: context,
+          idNumber: idNumber,
+          apiService: _apiService,
+          isJapanese: _currentLanguage == 'ja',
+        );
+      }
+    } catch (e) {
+      debugPrint("Error checking missing time out: $e");
+    } finally {
+      _isNoDtrShowing = false;
+    }
+  }
+
   Future<void> _checkReminder() async {
     try {
       final reminderData = await _apiService.fetchReminder();
@@ -1274,6 +1316,9 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           });
           return;
         }
+
+        await _runNoDtr(_idController.text);
+        if (!mounted) return;
 
         final phoneConditionResult = await _showPhoneConditionDialogIn();
         if (phoneConditionResult == null) {
@@ -1359,11 +1404,11 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
             final birthdate = DateTime.parse(profileData["birthdate"]);
             final today = DateTime.now();
             if (birthdate.month == today.month && birthdate.day == today.day) {
-              // Close any existing birthday celebration
-              if (Navigator.of(context).canPop()) {
+              if (_isBirthdayShowing && Navigator.of(context).canPop()) {
                 BirthdayCelebration.close(context);
               }
 
+              _isBirthdayShowing = true;
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 showDialog(
                   context: context,
@@ -1374,12 +1419,14 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                       name: profileData["firstName"],
                       languageFlag: profileData["languageFlag"] ?? 1,
                       onFinish: () {
-                        Navigator.of(context).pop();
+                        if (ModalRoute.of(context)?.isCurrent ?? false) {
+                          Navigator.of(context).pop();
+                        }
                       },
                       duration: const Duration(seconds: 9),
                     );
                   },
-                );
+                ).whenComplete(() => _isBirthdayShowing = false);
               });
             }
           }
