@@ -1290,11 +1290,11 @@ class ApiService {
     throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
 
-  Future<Map<String, dynamic>> checkShowSurvey(String idNumber) async {
+  Future<Map<String, dynamic>> fetchSurveyToShow(String idNumber) async {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkShowSurvey.php?idNumber=$idNumber");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchSurveyId.php?idNumber=${Uri.encodeQueryComponent(idNumber)}");
           final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
@@ -1308,13 +1308,10 @@ class ApiService {
           throw Exception("HTTP ${response.statusCode}");
         });
 
-        final qualified = result.value["qualified"] == true;
-        final finish = result.value["finish"] == true;
-
+        final surveyId = result.value["surveyId"];
         return {
-          "show": qualified && !finish,
-          "finish": finish,
-          "surveyLink": result.value["surveyLink"],
+          "show": result.value["show"] == true && surveyId != null,
+          "surveyId": surveyId,
           "apiUrl": result.apiUrlUsed,
         };
       } catch (e) {
@@ -1325,7 +1322,25 @@ class ApiService {
         }
       }
     }
-    return {"show": false, "finish": false, "surveyLink": null, "apiUrl": null};
+    return {"show": false, "surveyId": null, "apiUrl": null};
+  }
+
+  Future<bool> checkSurveyFinish(String idNumber, int surveyId) async {
+    final result = await _makeParallelRequest((apiUrl) async {
+      final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkSurveyFinish.php?idNumber=${Uri.encodeQueryComponent(idNumber)}&surveyId=$surveyId");
+      final response = await httpClient.get(uri);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data["success"] == true) {
+          return _ApiResult(data["finish"] == true, apiUrl);
+        }
+        throw Exception(data["message"] ?? "Failed to check survey finish");
+      }
+      throw Exception("HTTP ${response.statusCode}");
+    });
+
+    return result.value;
   }
   Future<Map<String, dynamic>> fetchNoDtr(String idNumber) async {
     for (int attempt = 1; attempt <= 3; attempt++) {

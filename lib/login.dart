@@ -590,15 +590,16 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       if (delay > Duration.zero) {
         await Future.delayed(delay);
       }
-      final status = await _apiService.checkShowSurvey(idNumber);
+      final status = await _apiService.fetchSurveyToShow(idNumber);
       final shouldShow = status["show"] == true;
-      final surveyLink = status["surveyLink"];
+      final surveyId = status["surveyId"];
       final apiUrl = status["apiUrl"];
-      if (shouldShow && surveyLink != null && apiUrl != null && mounted) {
+      if (shouldShow && surveyId != null && apiUrl != null && mounted) {
         await SurveyDialog.show(
           context: context,
-          surveyUrl: "$apiUrl$surveyLink?idNumber=$idNumber",
+          surveyUrl: "${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_surveyLaunch.php?idNumber=${Uri.encodeQueryComponent(idNumber)}&surveyId=$surveyId",
           idNumber: idNumber,
+          surveyId: surveyId is int ? surveyId : int.parse(surveyId.toString()),
           isJapanese: language == 'ja',
         );
       }

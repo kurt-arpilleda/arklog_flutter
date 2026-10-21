@@ -6,12 +6,14 @@ import 'api_service.dart';
 class SurveyDialog extends StatefulWidget {
   final String surveyUrl;
   final String idNumber;
+  final int surveyId;
   final bool isJapanese;
 
   const SurveyDialog({
     Key? key,
     required this.surveyUrl,
     required this.idNumber,
+    required this.surveyId,
     this.isJapanese = false,
   }) : super(key: key);
 
@@ -19,6 +21,7 @@ class SurveyDialog extends StatefulWidget {
     required BuildContext context,
     required String surveyUrl,
     required String idNumber,
+    required int surveyId,
     bool isJapanese = false,
   }) {
     return showDialog<void>(
@@ -26,7 +29,12 @@ class SurveyDialog extends StatefulWidget {
       barrierDismissible: false,
       barrierColor: Colors.black.withOpacity(0.5),
       builder: (context) {
-        return SurveyDialog(surveyUrl: surveyUrl, idNumber: idNumber, isJapanese: isJapanese);
+        return SurveyDialog(
+          surveyUrl: surveyUrl,
+          idNumber: idNumber,
+          surveyId: surveyId,
+          isJapanese: isJapanese,
+        );
       },
     );
   }
@@ -42,21 +50,24 @@ class _SurveyDialogState extends State<SurveyDialog> {
   final ApiService _apiService = ApiService();
   Timer? _pollTimer;
   bool _closing = false;
+  bool _finished = false;
 
   @override
   void initState() {
     super.initState();
-    _pollTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+    _pollTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
       _pollFinishStatus();
     });
   }
 
   Future<void> _pollFinishStatus() async {
-    if (_closing) return;
+    if (_closing || _finished) return;
     try {
-      final status = await _apiService.checkShowSurvey(widget.idNumber);
-      final finish = status["finish"] == true;
-      if (finish && mounted && !_closing) {
+      final finish = await _apiService.checkSurveyFinish(widget.idNumber, widget.surveyId);
+      if (finish && mounted && !_closing && !_finished) {
+        _finished = true;
+        _pollTimer?.cancel();
+        await Future.delayed(const Duration(seconds: 3));
         _closeDialog();
       }
     } catch (e) {
@@ -82,13 +93,13 @@ class _SurveyDialogState extends State<SurveyDialog> {
   @override
   Widget build(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
-    final dialogWidth = screenSize.width * 0.94 > 620 ? 620.0 : screenSize.width * 0.94;
-    final dialogHeight = screenSize.height * 0.85;
+    final dialogWidth = screenSize.width * 0.98;
+    final dialogHeight = screenSize.height * 0.94;
 
     return PopScope(
       canPop: false,
       child: Dialog(
-        insetPadding: const EdgeInsets.all(12),
+        insetPadding: const EdgeInsets.all(6),
         backgroundColor: Colors.transparent,
         child: Container(
           width: dialogWidth,
@@ -135,7 +146,6 @@ class _SurveyDialogState extends State<SurveyDialog> {
                         ),
                       ),
                     ),
-                    // Close button removed – user must complete the survey
                   ],
                 ),
               ),
