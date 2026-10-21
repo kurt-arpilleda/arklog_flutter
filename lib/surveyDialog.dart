@@ -67,7 +67,7 @@ class _SurveyDialogState extends State<SurveyDialog> {
       if (finish && mounted && !_closing && !_finished) {
         _finished = true;
         _pollTimer?.cancel();
-        await Future.delayed(const Duration(seconds: 3));
+        await Future.delayed(const Duration(seconds: 4));
         _closeDialog();
       }
     } catch (e) {

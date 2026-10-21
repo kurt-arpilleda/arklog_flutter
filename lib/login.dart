@@ -1027,8 +1027,8 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
                               Expanded(
                                 child: Text(
                                   _currentLanguage == 'ja'
-                                      ? '守衛に預ける前に、電話に問題や損傷がないか確認しますか？'
-                                      : 'Do you confirm the phone has no issues or damage before charging it to the guardhouse?',
+                                      ? '充電ステーションに預ける前に、携帯電話に不具合や破損がないか確認しますか？'
+                                      : 'Do you confirm the phone has no issues or damage before charging it to the charging station?',
                                   style: TextStyle(
                                     color: Colors.amber.shade900,
                                     fontWeight: FontWeight.w600,
