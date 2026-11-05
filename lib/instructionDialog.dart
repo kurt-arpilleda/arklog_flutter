@@ -14,6 +14,7 @@ class InstructionDialog extends StatefulWidget {
   final Duration slideInterval;
   final int maxImages;
   final String imageExtension;
+  final Duration maxWait;
 
   const InstructionDialog({
     Key? key,
@@ -26,6 +27,7 @@ class InstructionDialog extends StatefulWidget {
     this.slideInterval = const Duration(seconds: 4),
     this.maxImages = 30,
     this.imageExtension = 'jpeg',
+    this.maxWait = const Duration(minutes: 3),
   }) : super(key: key);
 
   static Future<bool?> show({
@@ -39,6 +41,7 @@ class InstructionDialog extends StatefulWidget {
     Duration slideInterval = const Duration(seconds: 4),
     int maxImages = 30,
     String imageExtension = 'jpeg',
+    Duration maxWait = const Duration(minutes: 3),
   }) {
     FocusManager.instance.primaryFocus?.unfocus();
     return showDialog<bool>(
@@ -55,6 +58,7 @@ class InstructionDialog extends StatefulWidget {
           slideInterval: slideInterval,
           maxImages: maxImages,
           imageExtension: imageExtension,
+          maxWait: maxWait,
         );
       },
     );
@@ -70,6 +74,7 @@ class _InstructionDialogState extends State<InstructionDialog> {
   int _currentIndex = 0;
   Timer? _pollTimer;
   Timer? _slideTimer;
+  Timer? _timeoutTimer;
   late http.Client _client;
   bool _isClosing = false;
   bool _isPolling = false;
@@ -80,6 +85,16 @@ class _InstructionDialogState extends State<InstructionDialog> {
     _client = _createHttpClient();
     _discoverImages();
     _startPolling();
+    _timeoutTimer = Timer(widget.maxWait, _closeWithoutConfirmation);
+  }
+
+  void _closeWithoutConfirmation() {
+    if (_isClosing || !mounted) return;
+    _isClosing = true;
+    _pollTimer?.cancel();
+    _slideTimer?.cancel();
+    _timeoutTimer?.cancel();
+    Navigator.of(context).pop(false);
   }
 
   http.Client _createHttpClient() {
@@ -133,6 +148,7 @@ class _InstructionDialogState extends State<InstructionDialog> {
         if (done && mounted && !_isClosing) {
           _isClosing = true;
           _pollTimer?.cancel();
+          _timeoutTimer?.cancel();
           Navigator.of(context).pop(true);
         }
       } catch (e) {
@@ -155,6 +171,7 @@ class _InstructionDialogState extends State<InstructionDialog> {
   void dispose() {
     _pollTimer?.cancel();
     _slideTimer?.cancel();
+    _timeoutTimer?.cancel();
     _client.close();
     super.dispose();
   }
@@ -343,6 +360,13 @@ class _InstructionDialogState extends State<InstructionDialog> {
                           ),
                         ],
                       ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: TextButton(
+                      onPressed: _closeWithoutConfirmation,
+                      child: Text(widget.isJapanese ? 'キャンセル' : 'Cancel'),
                     ),
                   ),
                 ],
