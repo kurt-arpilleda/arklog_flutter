@@ -178,7 +178,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_fetchProfile.php?idNumber=$idNumber");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchProfile.php?idNumber=$idNumber");
           final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
@@ -208,7 +208,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_getLastId.php?deviceId=$deviceId");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_getLastId.php?deviceId=$deviceId");
           final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
@@ -237,7 +237,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         await _makeMutationRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_logout.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_logout.php");
           final response = await httpClient.post(
             uri,
             body: {'deviceId': deviceId},
@@ -269,7 +269,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_confirmLogoutWTR.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_confirmLogoutWTR.php");
           final response = await httpClient.post(
             uri,
             body: {'idNumber': idNumber},
@@ -302,7 +302,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_checkDTR.php?idNumber=$idNumber");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkDTR.php?idNumber=$idNumber");
           final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
@@ -328,7 +328,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeMutationRequest((apiUrl) async {
-          final checkUri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_checkActiveWTR.php");
+          final checkUri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkActiveWTR.php");
           final checkResponse = await httpClient.post(
             checkUri,
             body: {'idNumber': idNumber},
@@ -338,7 +338,7 @@ class ApiService {
             final checkData = jsonDecode(checkResponse.body);
 
             if (checkData["success"] == true && checkData["hasActiveSessions"] == true) {
-              final updateUri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_existingInsert.php");
+              final updateUri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_existingInsert.php");
               final updateResponse = await httpClient.post(
                 updateUri,
                 body: {
@@ -362,7 +362,7 @@ class ApiService {
             }
           }
 
-          final insertUri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_insertWTR.php");
+          final insertUri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_insertWTR.php");
           final response = await httpClient.post(
             insertUri,
             body: {
@@ -426,7 +426,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeMutationRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_idLog.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_idLog.php");
           final response = await httpClient.post(
             uri,
             body: {
@@ -469,7 +469,7 @@ class ApiService {
   Future<bool> _checkIdExistsAndActive(String idNumber) async {
     try {
       final response = await _makeParallelRequest((apiUrl) async {
-        final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_checkId.php");
+        final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkId.php");
         final response = await httpClient.post(
           uri,
           body: {'idNumber': idNumber},
@@ -490,7 +490,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_checkActiveLogin.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkActiveLogin.php");
           final response = await httpClient.post(
             uri,
             body: {
@@ -521,7 +521,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeMutationRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_logoutWTR.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_logoutWTR.php");
           final response = await httpClient.post(
             uri,
             body: {
@@ -560,7 +560,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_checkAnyActiveWTR.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkAnyActiveWTR.php");
           final response = await httpClient.post(
             uri,
             body: {'idNumber': idNumber},
@@ -593,7 +593,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_fetchTimeIn.php?idNumber=$idNumber");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchTimeIn.php?idNumber=$idNumber");
           final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
@@ -618,7 +618,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_fetchQRCode.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchQRCode.php");
           final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
@@ -650,7 +650,7 @@ class ApiService {
     while (true) {
       try {
         final result = await _makeMutationRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_insertIdNumberQR.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_insertIdNumberQR.php");
           final response = await httpClient.post(
             uri,
             body: {'idNumber': idNumber},
@@ -694,7 +694,7 @@ class ApiService {
 
   Future<bool> checkTimeInStatus(String idNumber) async {
     final result = await _makeParallelRequest((apiUrl) async {
-      final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_checkTimeInStatus.php");
+      final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkTimeInStatus.php");
       final response = await httpClient.post(
         uri,
         body: {'idNumber': idNumber},
@@ -715,7 +715,7 @@ class ApiService {
 
   Future<bool> checkTimeOutStatus(String idNumber) async {
     final result = await _makeParallelRequest((apiUrl) async {
-      final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_checkTimeOutStatus.php");
+      final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkTimeOutStatus.php");
       final response = await httpClient.post(
         uri,
         body: {'idNumber': idNumber},
@@ -738,7 +738,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_checkPendingWTR.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkPendingWTR.php");
           final response = await httpClient.post(
             uri,
             body: {'deviceId': deviceId},
@@ -770,7 +770,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_checkExclusive.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkExclusive.php");
           final response = await httpClient.post(
             uri,
             body: {'deviceId': deviceId},
@@ -798,7 +798,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeMutationRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_idLog.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_idLog.php");
           final response = await httpClient.post(
             uri,
             body: {
@@ -832,7 +832,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_fetchPhoneName.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchPhoneName.php");
           final response = await httpClient.post(
             uri,
             body: {
@@ -865,7 +865,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_fetchManualLink.php?linkID=$linkID");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchManualLink.php?linkID=$linkID");
           final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
@@ -903,7 +903,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_updateLanguageFlag.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_updateLanguageFlag.php");
           final response = await httpClient.post(
             uri,
             body: {
@@ -935,7 +935,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_getWorkTimeInfo.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_getWorkTimeInfo.php");
           final response = await httpClient.post(
             uri,
             body: {
@@ -975,7 +975,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_getTodayOutput.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_getTodayOutput.php");
           final response = await httpClient.post(
             uri,
             body: {
@@ -1015,7 +1015,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_insertDailyPerformance.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_insertDailyPerformance.php");
           final response = await httpClient.post(
             uri,
             body: {
@@ -1053,7 +1053,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_checkWorkStart.php?idNumber=$idNumber");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkWorkStart.php?idNumber=$idNumber");
           final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
@@ -1079,7 +1079,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_fetchTodo.php?idNumber=$idNumber");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchTodo.php?idNumber=$idNumber");
           final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
@@ -1109,7 +1109,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_updateTodo.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_updateTodo.php");
           final response = await httpClient.post(
             uri,
             body: {
@@ -1145,7 +1145,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_fetchTodoCount.php?idNumber=$idNumber");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchTodoCount.php?idNumber=$idNumber");
           final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
@@ -1175,7 +1175,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_fetchSoftwareLinks.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchSoftwareLinks.php");
           final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
@@ -1205,7 +1205,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_addTodo.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_addTodo.php");
           final response = await httpClient.post(
             uri,
             body: {
@@ -1242,7 +1242,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_editTodo.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_editTodo.php");
           final response = await httpClient.post(
             uri,
             body: {
@@ -1279,7 +1279,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_deleteTodo.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_deleteTodo.php");
           final response = await httpClient.post(
             uri,
             body: {
@@ -1313,7 +1313,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_fetchAppPackage.php?linkID=$linkID");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchAppPackage.php?linkID=$linkID");
           final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
@@ -1344,7 +1344,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_fetchReminder.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchReminder.php");
           final response = await httpClient.get(uri);
           if (response.statusCode == 200) {
             final data = jsonDecode(response.body);
@@ -1373,7 +1373,7 @@ class ApiService {
     for (int attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_fetchSurveyId.php?idNumber=${Uri.encodeQueryComponent(idNumber)}");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchSurveyId.php?idNumber=${Uri.encodeQueryComponent(idNumber)}");
           final response = await httpClient.get(uri);
 
           if (response.statusCode == 200) {
@@ -1406,7 +1406,7 @@ class ApiService {
 
   Future<bool> checkSurveyFinish(String idNumber, int surveyId) async {
     final result = await _makeParallelRequest((apiUrl) async {
-      final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_checkSurveyFinish.php?idNumber=${Uri.encodeQueryComponent(idNumber)}&surveyId=$surveyId");
+      final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkSurveyFinish.php?idNumber=${Uri.encodeQueryComponent(idNumber)}&surveyId=$surveyId");
       final response = await httpClient.get(uri);
 
       if (response.statusCode == 200) {
@@ -1425,7 +1425,7 @@ class ApiService {
     for (int attempt = 1; attempt <= 3; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_fetchNoDtr.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_fetchNoDtr.php");
           final response = await httpClient.post(
             uri,
             body: {'idNumber': idNumber},
@@ -1461,7 +1461,7 @@ class ApiService {
     for (int attempt = 1; attempt <= 3; attempt++) {
       try {
         final result = await _makeParallelRequest((apiUrl) async {
-          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_saveNoDtr.php");
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_saveNoDtr.php");
           final response = await httpClient.post(
             uri,
             body: {

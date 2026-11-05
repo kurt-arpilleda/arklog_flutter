@@ -205,7 +205,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     try {
       final currentApiUrl = await _apiService.getCurrentApiUrl();
       final loginImageFolderUrl =
-          "${currentApiUrl}V4/Others/Kurt/ArkLogAPI1/Instruction%20Login/";
+          "${currentApiUrl}V4/Others/Kurt/ArkLogAPI/Instruction%20Login/";
 
       final bool? timeInConfirmed = await InstructionDialog.show(
         context: context,
@@ -277,7 +277,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     try {
       final currentApiUrl = await _apiService.getCurrentApiUrl();
       final logoutImageFolderUrl =
-          "${currentApiUrl}V4/Others/Kurt/ArkLogAPI1/Instruction%20Logout/";
+          "${currentApiUrl}V4/Others/Kurt/ArkLogAPI/Instruction%20Logout/";
 
       final bool? timeOutConfirmed = await InstructionDialog.show(
         context: context,
@@ -597,7 +597,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       if (shouldShow && surveyId != null && apiUrl != null && mounted) {
         await SurveyDialog.show(
           context: context,
-          surveyUrl: "${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_surveyLaunch.php?idNumber=${Uri.encodeQueryComponent(idNumber)}&surveyId=$surveyId",
+          surveyUrl: "${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_surveyLaunch.php?idNumber=${Uri.encodeQueryComponent(idNumber)}&surveyId=$surveyId",
           idNumber: idNumber,
           surveyId: surveyId is int ? surveyId : int.parse(surveyId.toString()),
           isJapanese: language == 'ja',
@@ -1351,7 +1351,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 
         final currentApiUrl = await _apiService.getCurrentApiUrl();
         final loginImageFolderUrl =
-            "${currentApiUrl}V4/Others/Kurt/ArkLogAPI1/Instruction%20Login/";
+            "${currentApiUrl}V4/Others/Kurt/ArkLogAPI/Instruction%20Login/";
 
         final bool? timeInConfirmed = await InstructionDialog.show(
           context: context,
@@ -1622,7 +1622,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 
         final currentApiUrl = await _apiService.getCurrentApiUrl();
         final logoutImageFolderUrl =
-            "${currentApiUrl}V4/Others/Kurt/ArkLogAPI1/Instruction%20Logout/";
+            "${currentApiUrl}V4/Others/Kurt/ArkLogAPI/Instruction%20Logout/";
 
         final bool? timeOutConfirmed = await InstructionDialog.show(
           context: context,
