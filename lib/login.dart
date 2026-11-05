@@ -205,7 +205,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     try {
       final currentApiUrl = await _apiService.getCurrentApiUrl();
       final loginImageFolderUrl =
-          "${currentApiUrl}V4/Others/Kurt/ArkLogAPI/Instruction%20Login/";
+          "${currentApiUrl}V4/Others/Kurt/ArkLogAPI1/Instruction%20Login/";
 
       final bool? timeInConfirmed = await InstructionDialog.show(
         context: context,
@@ -277,7 +277,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     try {
       final currentApiUrl = await _apiService.getCurrentApiUrl();
       final logoutImageFolderUrl =
-          "${currentApiUrl}V4/Others/Kurt/ArkLogAPI/Instruction%20Logout/";
+          "${currentApiUrl}V4/Others/Kurt/ArkLogAPI1/Instruction%20Logout/";
 
       final bool? timeOutConfirmed = await InstructionDialog.show(
         context: context,
@@ -597,7 +597,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       if (shouldShow && surveyId != null && apiUrl != null && mounted) {
         await SurveyDialog.show(
           context: context,
-          surveyUrl: "${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_surveyLaunch.php?idNumber=${Uri.encodeQueryComponent(idNumber)}&surveyId=$surveyId",
+          surveyUrl: "${apiUrl}V4/Others/Kurt/ArkLogAPI1/kurt_surveyLaunch.php?idNumber=${Uri.encodeQueryComponent(idNumber)}&surveyId=$surveyId",
           idNumber: idNumber,
           surveyId: surveyId is int ? surveyId : int.parse(surveyId.toString()),
           isJapanese: language == 'ja',
@@ -1345,9 +1345,13 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           phoneCondition: phoneCondition,
         );
 
+        if (wtrResponse['hasActiveLogin'] != true && wtrResponse['alreadyExists'] != true) {
+          await _apiService.insertIdNumberQR(_idController.text);
+        }
+
         final currentApiUrl = await _apiService.getCurrentApiUrl();
         final loginImageFolderUrl =
-            "${currentApiUrl}V4/Others/Kurt/ArkLogAPI/Instruction%20Login/";
+            "${currentApiUrl}V4/Others/Kurt/ArkLogAPI1/Instruction%20Login/";
 
         final bool? timeInConfirmed = await InstructionDialog.show(
           context: context,
@@ -1612,9 +1616,13 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           phoneConditionOut: phoneConditionOut,
         );
 
+        if (!isExempted && logoutResult['alreadyLoggedOut'] != true) {
+          await _apiService.insertIdNumberQR(_currentIdNumber!);
+        }
+
         final currentApiUrl = await _apiService.getCurrentApiUrl();
         final logoutImageFolderUrl =
-            "${currentApiUrl}V4/Others/Kurt/ArkLogAPI/Instruction%20Logout/";
+            "${currentApiUrl}V4/Others/Kurt/ArkLogAPI1/Instruction%20Logout/";
 
         final bool? timeOutConfirmed = await InstructionDialog.show(
           context: context,
@@ -2014,11 +2022,6 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       if (qrData == expectedCode) {
         isVerified = true;
         qrController?.pauseCamera();
-        try {
-          await _apiService.insertIdNumberQR(idNumberForQr);
-        } catch (e) {
-          debugPrint("Error inserting idNumber into QR: $e");
-        }
         Navigator.of(context).pop(true);
         qrController?.dispose();
       } else {
