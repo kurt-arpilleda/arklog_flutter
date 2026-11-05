@@ -585,11 +585,16 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   }
 
   Future<void> _maybeShowArkLogSurvey(String idNumber, String language, {Duration delay = Duration.zero}) async {
+    if (_isSurveyShowing) return;
     _isSurveyShowing = true;
     try {
       if (delay > Duration.zero) {
         await Future.delayed(delay);
       }
+      while (_isBirthdayShowing && mounted) {
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+      if (!mounted) return;
       final status = await _apiService.fetchSurveyToShow(idNumber);
       final shouldShow = status["show"] == true;
       final surveyId = status["surveyId"];

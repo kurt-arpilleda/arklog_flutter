@@ -51,6 +51,7 @@ class _SurveyDialogState extends State<SurveyDialog> {
   Timer? _pollTimer;
   bool _closing = false;
   bool _finished = false;
+  bool _polling = false;
 
   @override
   void initState() {
@@ -61,7 +62,8 @@ class _SurveyDialogState extends State<SurveyDialog> {
   }
 
   Future<void> _pollFinishStatus() async {
-    if (_closing || _finished) return;
+    if (_closing || _finished || _polling) return;
+    _polling = true;
     try {
       final finish = await _apiService.checkSurveyFinish(widget.idNumber, widget.surveyId);
       if (finish && mounted && !_closing && !_finished) {
@@ -72,16 +74,26 @@ class _SurveyDialogState extends State<SurveyDialog> {
       }
     } catch (e) {
       print("Error polling survey finish status: $e");
+    } finally {
+      _polling = false;
     }
   }
 
   void _closeDialog() {
     if (_closing || !mounted) return;
-    final route = ModalRoute.of(context);
-    if (route != null && !route.isCurrent) return;
     _closing = true;
     _pollTimer?.cancel();
-    Navigator.of(context).pop();
+    final route = ModalRoute.of(context);
+    final navigator = Navigator.of(context);
+    if (route == null) {
+      navigator.maybePop();
+      return;
+    }
+    if (route.isCurrent) {
+      navigator.pop();
+    } else {
+      navigator.removeRoute(route);
+    }
   }
 
   @override
