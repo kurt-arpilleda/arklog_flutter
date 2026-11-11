@@ -27,7 +27,7 @@ class InstructionDialog extends StatefulWidget {
     this.slideInterval = const Duration(seconds: 4),
     this.maxImages = 30,
     this.imageExtension = 'jpeg',
-    this.maxWait = const Duration(minutes: 3),
+    this.maxWait = const Duration(minutes: 4),
   }) : super(key: key);
 
   static Future<bool?> show({
@@ -41,7 +41,7 @@ class InstructionDialog extends StatefulWidget {
     Duration slideInterval = const Duration(seconds: 4),
     int maxImages = 30,
     String imageExtension = 'jpeg',
-    Duration maxWait = const Duration(minutes: 3),
+    Duration maxWait = const Duration(minutes: 4),
   }) {
     FocusManager.instance.primaryFocus?.unfocus();
     return showDialog<bool>(

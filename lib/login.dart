@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
+import 'dart:math';
 import 'pdfViewer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -207,7 +208,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       final loginImageFolderUrl =
           "${currentApiUrl}V4/Others/Kurt/ArkLogAPI/Instruction%20Login/";
 
-      final bool? timeInConfirmed = await InstructionDialog.show(
+      bool? timeInConfirmed = await InstructionDialog.show(
         context: context,
         imageFolderUrl: loginImageFolderUrl,
         isJapanese: _currentLanguage == 'ja',
@@ -217,16 +218,21 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       );
 
       if (timeInConfirmed != true) {
+        try {
+          timeInConfirmed = await _apiService.checkTimeInStatus(idNumber);
+        } catch (e) {
+          debugPrint("Final time-in check failed: $e");
+        }
+      }
+
+      if (timeInConfirmed != true) {
         setState(() {
           _isLoading = false;
         });
         return;
       }
 
-      final actualIdNumber = await _apiService.insertIdNumber(
-        idNumber,
-        deviceId: _deviceId!,
-      );
+      final actualIdNumber = await _finalizeDeviceLogin(idNumber);
 
       final profileData = await _apiService.fetchProfile(actualIdNumber);
 
@@ -268,6 +274,43 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
     }
   }
 
+  Future<String> _finalizeDeviceLogin(String idNumber) async {
+    Object? lastError;
+    for (int attempt = 1; attempt <= 4; attempt++) {
+      try {
+        return await _apiService.insertIdNumber(
+          idNumber,
+          deviceId: _deviceId!,
+        );
+      } catch (e) {
+        lastError = e;
+        final message = e.toString();
+        if (message.contains("not existing or is not active") ||
+            message.contains("Please Log first on DTR")) {
+          rethrow;
+        }
+        debugPrint("Device login sync attempt $attempt failed: $e");
+        await Future.delayed(Duration(seconds: attempt * 2));
+      }
+    }
+    throw lastError ?? Exception("Failed to record device login");
+  }
+
+  Future<void> _finalizeDeviceLogout() async {
+    Object? lastError;
+    for (int attempt = 1; attempt <= 4; attempt++) {
+      try {
+        await _apiService.logout(_deviceId!);
+        return;
+      } catch (e) {
+        lastError = e;
+        debugPrint("Device logout sync attempt $attempt failed: $e");
+        await Future.delayed(Duration(seconds: attempt * 2));
+      }
+    }
+    throw lastError ?? Exception("Failed to record device logout");
+  }
+
   Future<void> _resumeLogoutConfirmation(String idNumber) async {
     setState(() {
       _isLoading = true;
@@ -279,7 +322,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       final logoutImageFolderUrl =
           "${currentApiUrl}V4/Others/Kurt/ArkLogAPI/Instruction%20Logout/";
 
-      final bool? timeOutConfirmed = await InstructionDialog.show(
+      bool? timeOutConfirmed = await InstructionDialog.show(
         context: context,
         imageFolderUrl: logoutImageFolderUrl,
         isJapanese: _currentLanguage == 'ja',
@@ -289,13 +332,21 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
       );
 
       if (timeOutConfirmed != true) {
+        try {
+          timeOutConfirmed = await _apiService.checkTimeOutStatus(idNumber);
+        } catch (e) {
+          debugPrint("Final time-out check failed: $e");
+        }
+      }
+
+      if (timeOutConfirmed != true) {
         setState(() {
           _isLoading = false;
         });
         return;
       }
 
-      await _apiService.logout(_deviceId!);
+      await _finalizeDeviceLogout();
 
       setState(() {
         _isLoggedIn = false;
@@ -1358,7 +1409,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         final loginImageFolderUrl =
             "${currentApiUrl}V4/Others/Kurt/ArkLogAPI/Instruction%20Login/";
 
-        final bool? timeInConfirmed = await InstructionDialog.show(
+        bool? timeInConfirmed = await InstructionDialog.show(
           context: context,
           imageFolderUrl: loginImageFolderUrl,
           isJapanese: _currentLanguage == 'ja',
@@ -1366,6 +1417,14 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           waitingTitleJa: 'ログインを確認しています',
           onPoll: () => _apiService.checkTimeInStatus(_idController.text),
         );
+
+        if (timeInConfirmed != true) {
+          try {
+            timeInConfirmed = await _apiService.checkTimeInStatus(_idController.text);
+          } catch (e) {
+            debugPrint("Final time-in check failed: $e");
+          }
+        }
 
         if (timeInConfirmed != true) {
           setState(() {
@@ -1376,10 +1435,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
 
         // Only now — after time-in is confirmed and the InstructionDialog has
         // closed — do we log the ID/device pair into system_arkLog.
-        final actualIdNumber = await _apiService.insertIdNumber(
-          _idController.text,
-          deviceId: _deviceId!,
-        );
+        final actualIdNumber = await _finalizeDeviceLogin(_idController.text);
 
         final profileData = await _apiService.fetchProfile(actualIdNumber);
 
@@ -1629,7 +1685,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         final logoutImageFolderUrl =
             "${currentApiUrl}V4/Others/Kurt/ArkLogAPI/Instruction%20Logout/";
 
-        final bool? timeOutConfirmed = await InstructionDialog.show(
+        bool? timeOutConfirmed = await InstructionDialog.show(
           context: context,
           imageFolderUrl: logoutImageFolderUrl,
           isJapanese: _currentLanguage == 'ja',
@@ -1637,6 +1693,14 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
           waitingTitleJa: 'ログアウトを確認しています',
           onPoll: () => _apiService.checkTimeOutStatus(_currentIdNumber!),
         );
+
+        if (timeOutConfirmed != true) {
+          try {
+            timeOutConfirmed = await _apiService.checkTimeOutStatus(_currentIdNumber!);
+          } catch (e) {
+            debugPrint("Final time-out check failed: $e");
+          }
+        }
 
         if (timeOutConfirmed != true) {
           setState(() => _isLoading = false);
@@ -1655,7 +1719,7 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
         }
       }
 
-      await _apiService.logout(_deviceId!);
+      await _finalizeDeviceLogout();
 
       setState(() {
         _isLoggedIn = false;
@@ -2040,15 +2104,22 @@ class _LoginScreenState extends State<LoginScreen> with WidgetsBindingObserver {
   }
 
   Future<String> _getDeviceId() async {
+    String? identifier;
     try {
-      String? identifier = await UniqueIdentifier.serial;
-      return identifier ?? 'unknown-device';
-    }catch (e) {
+      identifier = await UniqueIdentifier.serial;
+    } catch (e) {
       print('Error getting device identifier: $e');
-      return _currentLanguage == 'ja'
-          ? 'デバイスIDの取得中にエラーが発生しました'
-          : 'error-getting-device-id';
     }
+    if (identifier != null && identifier.trim().isNotEmpty) {
+      return identifier;
+    }
+    final prefs = await SharedPreferences.getInstance();
+    String? fallbackId = prefs.getString('fallbackDeviceId');
+    if (fallbackId == null || fallbackId.isEmpty) {
+      fallbackId = 'ark-${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1000000)}';
+      await prefs.setString('fallbackDeviceId', fallbackId);
+    }
+    return fallbackId;
   }
 
   @override

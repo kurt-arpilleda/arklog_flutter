@@ -414,12 +414,8 @@ class ApiService {
   }
 
   Future<String> insertIdNumber(String idNumber, {required String deviceId}) async {
-    try {
-      final exists = await _checkIdExistsAndActive(idNumber);
-      if (!exists) {
-        throw Exception("This ID is not existing or is not active");
-      }
-    } catch (e) {
+    final exists = await _checkIdExistsAndActive(idNumber);
+    if (!exists) {
       throw Exception("This ID is not existing or is not active");
     }
 
@@ -467,23 +463,29 @@ class ApiService {
   }
 
   Future<bool> _checkIdExistsAndActive(String idNumber) async {
-    try {
-      final response = await _makeParallelRequest((apiUrl) async {
-        final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkId.php");
-        final response = await httpClient.post(
-          uri,
-          body: {'idNumber': idNumber},
-        );
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          return _ApiResult(data["exists"] ?? false, apiUrl);
+    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        final response = await _makeParallelRequest((apiUrl) async {
+          final uri = Uri.parse("${apiUrl}V4/Others/Kurt/ArkLogAPI/kurt_checkId.php");
+          final response = await httpClient.post(
+            uri,
+            body: {'idNumber': idNumber},
+          );
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            return _ApiResult(data["exists"] == true, apiUrl);
+          }
+          throw Exception("HTTP ${response.statusCode}");
+        });
+        return response.value;
+      } catch (e) {
+        print("Attempt $attempt failed: $e");
+        if (attempt < maxRetries) {
+          await Future.delayed(_retryDelay(attempt));
         }
-        throw Exception("HTTP ${response.statusCode}");
-      });
-      return response.value;
-    } catch (e) {
-      return false;
+      }
     }
+    throw Exception("Both API URLs are unreachable after $maxRetries attempts");
   }
 
   Future<Map<String, dynamic>> checkActiveLogin(String idNumber) async {
